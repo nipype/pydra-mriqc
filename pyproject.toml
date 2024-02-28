@@ -12,7 +12,6 @@ dependencies = [
     "fileformats >=0.8.3",
     "fileformats-datascience >=0.1",
     "fileformats-medimage >=0.4.1",
-    "fileformats-medimage-mriqc"
 ]
 license = {file = "LICENSE"}
 authors = [{name = "Nipype developers", email = "neuroimaging@python.org"}]
@@ -53,7 +52,6 @@ test = [
     "fileformats-extras",
     "fileformats-datascience-extras",
     "fileformats-medimage-extras",
-    "fileformats-medimage-mriqc-extras"
 ]
 
 [tool.hatch.version]
