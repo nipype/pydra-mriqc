@@ -8,12 +8,12 @@ from importlib import import_module
 import yaml
 import nipype
 import nipype2pydra.utils
-from nipype2pydra.task import TaskConverter
+from nipype2pydra.task import get_converter
 
 
 SPECS_DIR = Path(__file__).parent / "specs"
 PKG_ROOT = Path(__file__).parent.parent
-PKG_NAME = "anatomical"
+PKG_NAME = "mriqc"
 
 if ".dev" in nipype.__version__:
     raise RuntimeError(
@@ -38,6 +38,7 @@ if auto_dir.exists():
 for fspath in sorted(SPECS_DIR.glob("**/*.yaml")):
     with open(fspath) as f:
         spec = yaml.load(f, Loader=yaml.SafeLoader)
+    print(f"processing {fspath}")
 
     rel_pkg_path = str(fspath.parent.relative_to(SPECS_DIR)).replace(os.path.sep, ".")
     if rel_pkg_path == ".":
@@ -49,7 +50,7 @@ for fspath in sorted(SPECS_DIR.glob("**/*.yaml")):
 
     module_name = nipype2pydra.utils.to_snake_case(spec["task_name"])
 
-    converter = TaskConverter(
+    converter = get_converter(
         output_module=f"pydra.tasks.{PKG_NAME}.auto.{module_name}",
         callables_module=callables,  # type: ignore
         **spec,

@@ -137,5 +137,5 @@ dmypy.json
 # Mac garbarge
 .DS_store
 
-/pydra/tasks/anatomical/auto
-/pydra/tasks/anatomical/_version.py
+/pydra/tasks/mriqc/auto
+/pydra/tasks/mriqc/_version.py
