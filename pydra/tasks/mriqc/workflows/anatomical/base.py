@@ -49,8 +49,11 @@ For the skull-stripping, we use ``afni_wf`` from ``niworkflows.anat.skullstrip``
     from mriqc.testing import mock_config
     with mock_config():
         wf = afni_wf()
-
 """
+from pydra import Workflow, Node
+from pydra.engine import specs
+
+
 from mriqc import config
 from mriqc.interfaces import (
     ArtifactMask,
@@ -65,14 +68,15 @@ from mriqc.interfaces.datalad import DataladIdentityInterface
 from mriqc.messages import BUILDING_WORKFLOW
 from mriqc.workflows.utils import get_fwhmx
 from mriqc.workflows.anatomical.output import init_anat_report_wf
-from nipype.interfaces import utility as niu
-from nipype.pipeline import engine as pe
+
+# from nipype.interfaces import utility as niu
+# from nipype.pipeline import engine as pe
 
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 from templateflow.api import get as get_template
 
 
-def anat_qc_workflow(name="anatMRIQC"):
+def anat_qc_workflow(modality, name="anatMRIQC"):
     """
     One-subject-one-session-one-run pipeline to extract the NR-IQMs from
     anatomical images
@@ -88,7 +92,9 @@ def anat_qc_workflow(name="anatMRIQC"):
     """
     from pydra.tasks.mriqc.workflows.shared import synthstrip_wf
 
-    dataset = config.workflow.inputs.get("t1w", []) + config.workflow.inputs.get("t2w", [])
+    dataset = config.workflow.inputs.get("t1w", []) + config.workflow.inputs.get(
+        "t2w", []
+    )
 
     message = BUILDING_WORKFLOW.format(
         modality="anatomical",
@@ -101,70 +107,132 @@ def anat_qc_workflow(name="anatMRIQC"):
     config.loggers.workflow.info(message)
 
     # Initialize workflow
-    workflow = pe.Workflow(name=name)
+    workflow = pe.Workflow(
+        name=name, input_spec=["in_file"]
+    )  # specifying `input_spec` to contain ["in_file"] makes a field accessible at workflow.lzin.in_file
+
+    # Define input and output spec for the workflow
+    # input_spec = specs.SpecInfo(
+    #     name="Input", fields=["in_file"], bases=(specs.IdentityInterface,),
+    # )
+
+    # output_spec = specs.SpecInfo(
+    #     name="Output", fields=["out_json"], bases=(specs.IdentityInterface,),
+    # )
 
     # Define workflow, inputs and outputs
     # 0. Get data
-    inputnode = pe.Node(niu.IdentityInterface(fields=["in_file"]), name="inputnode")
-    inputnode.iterables = [("in_file", dataset)]
+    # inputnode = pe.Node(niu.IdentityInterface(fields=["in_file"]), name="inputnode")
+    # inputnode = Node(interface=input_spec, name = "inputnode", iterables =("in-file",dataset))
+    # inputnode.iterables = [("in_file", dataset)]
 
-    datalad_get = pe.Node(
-        DataladIdentityInterface(fields=["in_file"], dataset_path=config.execution.bids_dir),
-        name="datalad_get",
-    )
+    # datalad_get = pe.Node(
+    # DataladIdentityInterface(fields=["in_file"], dataset_path=config.execution.bids_dir),
+    # name="datalad_get",
+    # )
+    # datalad_get = Node(
+    #     interface = DataladIdentityInterface(
+    #         fields =["in_file"], dataset_path =config.execution.bids_dir
+    #     ),
+    #     name = "datalad_get",
+    # )
 
-    outputnode = pe.Node(niu.IdentityInterface(fields=["out_json"]), name="outputnode")
+    # outputnode = Node(interface = output_spec, name = "outputnode")
+    # outputnode = pe.Node(niu.IdentityInterface(fields=["out_json"]), name="outputnode")
 
     # 1. Reorient anatomical image
-    to_ras = pe.Node(ConformImage(check_dtype=False), name="conform")
-    # 2. species specific skull-stripping
-    if config.workflow.species.lower() == "human":
-        skull_stripping = synthstrip_wf(omp_nthreads=config.nipype.omp_nthreads)
-        ss_bias_field = "outputnode.bias_image"
-    else:
-        from nirodents.workflows.brainextraction import init_rodent_brain_extraction_wf
+    # to_ras = pe.Node(ConformImage(check_dtype=False), name="conform")
+    workflow.add(
+        ConformImage(in_file=workflow.lzin.in_file, check_dtype=False, name="to_ras")
+    )
 
-        skull_stripping = init_rodent_brain_extraction_wf(template_id=config.workflow.template_id)
-        ss_bias_field = "final_n4.bias_image"
+    # 2. species specific skull-stripping
+    # if config.workflow.species.lower() == "human":
+    workflow.add(
+        synthstrip_wf(
+            omp_nthreads=config.nipype.omp_nthreads,
+            in_files=workflow.to_ras.lzout.out_file,
+            name="skull_stripping",
+        )
+    )
+    ss_bias_field = "bias_image"
+    # else:
+    #     from nirodents.workflows.brainextraction import init_rodent_brain_extraction_wf
+
+    #     skull_stripping = init_rodent_brain_extraction_wf(template_id=config.workflow.template_id)
+    #     ss_bias_field = "final_n4.bias_image"
+
     # 3. Head mask
-    hmsk = headmsk_wf(omp_nthreads=config.nipype.omp_nthreads)
+    workflow.add(
+        headmsk_wf(
+            in_file=workflow.skull_stripping.lzout.out_corrected,
+            brain_mask=workflow.skull_stripping.lzout.out_mask,
+            omp_nthreads=config.nipype.omp_nthreads,
+            name="hmsk",
+        )
+    )
     # 4. Spatial Normalization, using ANTs
-    norm = spatial_normalization()
+    workflow.add(
+        spatial_normalization(
+            **{modality: workflow.lzin.in_file},
+            moving_image=workflow.skull_stripping.lzout.outcorrected,
+            moving_mask=workflow.skullstripping.lzout.out_mask,
+            name="norm",
+        )
+    )
     # 5. Air mask (with and without artifacts)
-    amw = airmsk_wf()
+    workflow.add(airmsk_wf(ind2std_xfm=workflow.norm.lzout.ind2std_xfm, name="amw"))
     # 6. Brain tissue segmentation
-    bts = init_brain_tissue_segmentation()
+    workflow.add(
+        init_brain_tissue_segmentation(
+            brainmask=workflow.skull_stripping.lzout.out_mask,
+            std_tpms=workflow.norm.lzout.out_tpms,
+            name="bts",
+        )
+    )
+
     # 7. Compute IQMs
-    iqmswf = compute_iqms()
+    workflow.add(
+        compute_iqms(
+            in_file=workflow.lzin.in_file,
+            std_tpms=workflow.norm.lzout.out_tpms,
+            name="iqmswf",
+        )
+    )
+
     # Reports
-    anat_report_wf = init_anat_report_wf()
+    workflow.add(
+        init_anat_report_wf(
+            mni_report=workflow.norm.lzout.out_report, name="anat_report_wf"
+        )
+    )
 
     # Connect all nodes
     # fmt: off
-    workflow.connect([
-        (inputnode, datalad_get, [("in_file", "in_file")]),
-        (inputnode, anat_report_wf, [
-            ("in_file", "inputnode.name_source"),
-        ]),
-        (datalad_get, to_ras, [("in_file", "in_file")]),
-        (datalad_get, iqmswf, [("in_file", "inputnode.in_file")]),
-        (datalad_get, norm, [(("in_file", _get_mod), "inputnode.modality")]),
-        (to_ras, skull_stripping, [("out_file", "inputnode.in_files")]),
-        (skull_stripping, hmsk, [
-            ("outputnode.out_corrected", "inputnode.in_file"),
-            ("outputnode.out_mask", "inputnode.brainmask"),
-        ]),
-        (skull_stripping, bts, [("outputnode.out_mask", "inputnode.brainmask")]),
-        (skull_stripping, norm, [
-            ("outputnode.out_corrected", "inputnode.moving_image"),
-            ("outputnode.out_mask", "inputnode.moving_mask")]),
-        (norm, bts, [("outputnode.out_tpms", "inputnode.std_tpms")]),
-        (norm, amw, [
-            ("outputnode.ind2std_xfm", "inputnode.ind2std_xfm")]),
-        (norm, iqmswf, [
-            ("outputnode.out_tpms", "inputnode.std_tpms")]),
-        (norm, anat_report_wf, ([
-            ("outputnode.out_report", "inputnode.mni_report")])),
+    workflow.add_connections([
+        # (inputnode, datalad_get, [("in_file", "in_file")]),
+        # (inputnode, anat_report_wf, [
+        #     ("in_file", "inputnode.name_source"),
+        # ]),
+        # (datalad_get, to_ras, [("in_file", "in_file")]),
+        # (datalad_get, iqmswf, [("in_file", "inputnode.in_file")]),
+        # (datalad_get, norm, [(("in_file", _get_mod), "inputnode.modality")]),
+        # (to_ras, skull_stripping, [("out_file", "inputnode.in_files")]),
+        # (skull_stripping, hmsk, [
+        #     ("outputnode.out_corrected", "inputnode.in_file"),
+        #     ("outputnode.out_mask", "inputnode.brainmask"),
+        # ]),
+        # (skull_stripping, bts, [("outputnode.out_mask", "inputnode.brainmask")]),
+        #(skull_stripping, norm, [
+        #    ("outputnode.out_corrected", "inputnode.moving_image"),
+        #    ("outputnode.out_mask", "inputnode.moving_mask")]),
+       # (norm, bts, [("outputnode.out_tpms", "inputnode.std_tpms")]),
+        # (norm, amw, [
+        #     ("outputnode.ind2std_xfm", "inputnode.ind2std_xfm")]),
+        # (norm, iqmswf, [
+        #     ("outputnode.out_tpms", "inputnode.std_tpms")]),
+        # (norm, anat_report_wf, ([
+        #     ("outputnode.out_report", "inputnode.mni_report")])),
         (norm, hmsk, [("outputnode.out_tpms", "inputnode.in_tpms")]),
         (to_ras, amw, [("out_file", "inputnode.in_file")]),
         (skull_stripping, amw, [("outputnode.out_mask", "inputnode.in_mask")]),
@@ -212,7 +280,7 @@ def anat_qc_workflow(name="anatMRIQC"):
         )
 
         # fmt: off
-        workflow.connect([
+        workflow.ad_connections([
             (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
             (upldwf, anat_report_wf, [("api_id", "inputnode.api_id")]),
         ])
@@ -231,37 +299,93 @@ def spatial_normalization(name="SpatialNormalization"):
     tpl_id = config.workflow.template_id
 
     # Define workflow interface
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(
-        niu.IdentityInterface(fields=["moving_image", "moving_mask", "modality"]),
-        name="inputnode",
-    )
-    outputnode = pe.Node(
-        niu.IdentityInterface(fields=["out_tpms", "out_report", "ind2std_xfm"]),
-        name="outputnode",
-    )
+    # workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+
+    # Define input and output nodes
+    inputnode = Node(interface=input_spec, name="inputnode")
+
+    # inputnode = pe.Node(
+    # niu.IdentityInterface(fields=["moving_image", "moving_mask", "modality"]),
+    # name="inputnode",
+    # )
+    outputnode = Node(interface=output_spec, name="outputnode")
+
+    # outputnode = pe.Node(
+    # niu.IdentityInterface(fields=["out_tpms", "out_report", "ind2std_xfm"]),
+    # name="outputnode",
+    # )
 
     # Spatial normalization
-    norm = pe.Node(
-        RobustMNINormalization(
+    @pydra.mark.task
+    def spatial_normalization(
+        flavor,
+        num_threads,
+        ants_float,
+        template,
+        generate_report,
+        species,
+        tpl_id,
+    ):
+
+        # no pe.node here
+        norm = RobustMNINormalization(
             flavor=["testing", "fast"][config.execution.debug],
             num_threads=config.nipype.omp_nthreads,
             float=config.execution.ants_float,
             template=tpl_id,
             generate_report=True,
-        ),
-        name="SpatialNormalization",
-        # Request all MultiProc processes when ants_nthreads > n_procs
-        num_threads=config.nipype.omp_nthreads,
-        mem_gb=3,
-    )
-    if config.workflow.species.lower() == "human":
-        norm.inputs.reference_mask = str(
-            get_template(tpl_id, resolution=2, desc="brain", suffix="mask")
+            name="SpatialNormalization",
+            # Request all MultiProc processes when ants_nthreads > n_procs
+            num_threads=config.nipype.omp_nthreads,
+            mem_gb=3,
         )
-    else:
-        norm.inputs.reference_image = str(get_template(tpl_id, suffix="T2w"))
-        norm.inputs.reference_mask = str(get_template(tpl_id, desc="brain", suffix="mask")[0])
+        if config.workflow.species.lower() == "human":
+            norm.inputs.reference_mask = str(
+                get_template(tpl_id, resolution=2, desc="brain", suffix="mask")
+            )
+        else:
+            norm.inputs.reference_image = str(get_template(tpl_id, suffix="T2w"))
+            norm.inputs.reference_mask = str(
+                get_template(tpl_id, desc="brain", suffix="mask")[0]
+            )
+
+        return norm
+
+
+# Create a Pydra workflow
+wf = Workflow(name="SpatialNormalizationWorkflow")
+
+# Define input parameters
+flavor = ["testing", "fast"][config.execution.debug]
+num_threads = config.nipype.omp_nthreads
+ants_float = config.execution.ants_float
+template = tpl_id
+generate_report = True
+species = config.workflow.species.lower()
+tpl_id = "your_template_id_here"  # Replace with actual value
+
+# Add the spatial normalization task to the workflow
+wf.add(
+    spatial_normalization(
+        flavor=flavor,
+        num_threads=num_threads,
+        ants_float=ants_float,
+        template=template,
+        generate_report=generate_report,
+        species=species,
+        tpl_id=tpl_id,
+    ),
+    name="SpatialNormalization",
+    num_threads=config.nipype.omp_nthreads,
+    mem_gb=3,
+)
+
+# Execute the workflow
+with pydra.Submitter(plugin="cf") as sub:
+    wf(submitter=sub)
+
+    #### up to here (12/03/2024)
 
     # Project standard TPMs into T1w space
     tpms_std2t1w = pe.MapNode(
@@ -356,7 +480,10 @@ def init_brain_tissue_segmentation(name="brain_tissue_segmentation"):
         if fname_string is None:
             fname_string = f"priors_%02d{extension}"
 
-        out_files = [str(prior) for prior in glob.glob(str(Path(out_path, f"priors*{extension}")))]
+        out_files = [
+            str(prior)
+            for prior in glob.glob(str(Path(out_path, f"priors*{extension}")))
+        ]
 
         # return path with c-style format string for Atropos
         file_format = str(Path(out_path, fname_string))
@@ -457,7 +584,9 @@ def compute_iqms(name="ComputeIQMs"):
     )
 
     # Extract metadata
-    meta = pe.Node(ReadSidecarJSON(index_db=config.execution.bids_database_dir), name="metadata")
+    meta = pe.Node(
+        ReadSidecarJSON(index_db=config.execution.bids_database_dir), name="metadata"
+    )
 
     # Add provenance
     addprov = pe.Node(AddProvenance(), name="provenance", run_without_submitting=True)
@@ -477,7 +606,9 @@ def compute_iqms(name="ComputeIQMs"):
     getqi2 = pe.Node(ComputeQI2(), name="ComputeQI2")
 
     # Compute python-coded measures
-    measures = pe.Node(StructuralQC(human=config.workflow.species.lower() == "human"), "measures")
+    measures = pe.Node(
+        StructuralQC(human=config.workflow.species.lower() == "human"), "measures"
+    )
 
     datasink = pe.Node(
         IQMFileSink(
@@ -552,7 +683,8 @@ def headmsk_wf(name="HeadMaskWorkflow", omp_nthreads=1):
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["in_file", "brainmask", "in_tpms"]), name="inputnode"
+        niu.IdentityInterface(fields=["in_file", "brainmask", "in_tpms"]),
+        name="inputnode",
     )
     outputnode = pe.Node(
         niu.IdentityInterface(fields=["out_file", "out_denoised"]), name="outputnode"
@@ -789,10 +921,14 @@ def gradient_threshold(in_file, brainmask, thresh=15.0, out_file=None, aniso=Fal
     mask = np.zeros_like(data, dtype=np.uint8)
     mask[data > thresh] = 1
     mask = sim.binary_closing(mask, struct, iterations=2).astype(np.uint8)
-    mask = sim.binary_erosion(mask, sim.generate_binary_structure(3, 2)).astype(np.uint8)
+    mask = sim.binary_erosion(mask, sim.generate_binary_structure(3, 2)).astype(
+        np.uint8
+    )
 
     segdata = np.asanyarray(nb.load(brainmask).dataobj) > 0
-    segdata = sim.binary_dilation(segdata, struct, iterations=2, border_value=1).astype(np.uint8)
+    segdata = sim.binary_dilation(segdata, struct, iterations=2, border_value=1).astype(
+        np.uint8
+    )
     mask[segdata] = 1
 
     # Remove small objects
@@ -805,7 +941,9 @@ def gradient_threshold(in_file, brainmask, thresh=15.0, out_file=None, aniso=Fal
             mask[label_im == label] = 0
             artmsk[label_im == label] = 1
 
-    mask = sim.binary_fill_holes(mask, struct).astype(np.uint8)  # pylint: disable=no-member
+    mask = sim.binary_fill_holes(mask, struct).astype(
+        np.uint8
+    )  # pylint: disable=no-member
 
     out_file = out_file or str(generate_filename(in_file, suffix="gradmask").absolute())
     nb.Nifti1Image(mask, imnii.affine, hdr).to_filename(out_file)

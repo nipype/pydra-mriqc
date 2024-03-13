@@ -23,8 +23,8 @@
 """Shared workflows."""
 # from nipype.interfaces import utility as niu
 # from nipype.pipeline import engine as pe
-import pydra
 
+import pydra
 
 def synthstrip_wf(name="synthstrip_wf", omp_nthreads=None):
     """Create a brain-extraction workflow using SynthStrip."""
