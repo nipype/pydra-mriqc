@@ -111,35 +111,6 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
         name=name, input_spec=["in_file"]
     )  # specifying `input_spec` to contain ["in_file"] makes a field accessible at workflow.lzin.in_file
 
-    # Define input and output spec for the workflow
-    # input_spec = specs.SpecInfo(
-    #     name="Input", fields=["in_file"], bases=(specs.IdentityInterface,),
-    # )
-
-    # output_spec = specs.SpecInfo(
-    #     name="Output", fields=["out_json"], bases=(specs.IdentityInterface,),
-    # )
-
-    # Define workflow, inputs and outputs
-    # 0. Get data
-    # inputnode = pe.Node(niu.IdentityInterface(fields=["in_file"]), name="inputnode")
-    # inputnode = Node(interface=input_spec, name = "inputnode", iterables =("in-file",dataset))
-    # inputnode.iterables = [("in_file", dataset)]
-
-    # datalad_get = pe.Node(
-    # DataladIdentityInterface(fields=["in_file"], dataset_path=config.execution.bids_dir),
-    # name="datalad_get",
-    # )
-    # datalad_get = Node(
-    #     interface = DataladIdentityInterface(
-    #         fields =["in_file"], dataset_path =config.execution.bids_dir
-    #     ),
-    #     name = "datalad_get",
-    # )
-
-    # outputnode = Node(interface = output_spec, name = "outputnode")
-    # outputnode = pe.Node(niu.IdentityInterface(fields=["out_json"]), name="outputnode")
-
     # 1. Reorient anatomical image
     # to_ras = pe.Node(ConformImage(check_dtype=False), name="conform")
     workflow.add(
@@ -210,29 +181,6 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
     # Connect all nodes
     # fmt: off
     workflow.add_connections([
-        # (inputnode, datalad_get, [("in_file", "in_file")]),
-        # (inputnode, anat_report_wf, [
-        #     ("in_file", "inputnode.name_source"),
-        # ]),
-        # (datalad_get, to_ras, [("in_file", "in_file")]),
-        # (datalad_get, iqmswf, [("in_file", "inputnode.in_file")]),
-        # (datalad_get, norm, [(("in_file", _get_mod), "inputnode.modality")]),
-        # (to_ras, skull_stripping, [("out_file", "inputnode.in_files")]),
-        # (skull_stripping, hmsk, [
-        #     ("outputnode.out_corrected", "inputnode.in_file"),
-        #     ("outputnode.out_mask", "inputnode.brainmask"),
-        # ]),
-        # (skull_stripping, bts, [("outputnode.out_mask", "inputnode.brainmask")]),
-        #(skull_stripping, norm, [
-        #    ("outputnode.out_corrected", "inputnode.moving_image"),
-        #    ("outputnode.out_mask", "inputnode.moving_mask")]),
-       # (norm, bts, [("outputnode.out_tpms", "inputnode.std_tpms")]),
-        # (norm, amw, [
-        #     ("outputnode.ind2std_xfm", "inputnode.ind2std_xfm")]),
-        # (norm, iqmswf, [
-        #     ("outputnode.out_tpms", "inputnode.std_tpms")]),
-        # (norm, anat_report_wf, ([
-        #     ("outputnode.out_report", "inputnode.mni_report")])),
         (norm, hmsk, [("outputnode.out_tpms", "inputnode.in_tpms")]),
         (to_ras, amw, [("out_file", "inputnode.in_file")]),
         (skull_stripping, amw, [("outputnode.out_mask", "inputnode.in_mask")]),
@@ -267,26 +215,54 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
     # fmt: on
 
     # Upload metrics
-    if not config.execution.no_sub:
+    @pydra.mark.task
+    def upload_iqms(in_iqms, endpoint, auth_token, strict):
         from mriqc.interfaces.webapi import UploadIQMs
 
-        upldwf = pe.Node(
-            UploadIQMs(
-                endpoint=config.execution.webapi_url,
-                auth_token=config.execution.webapi_token,
-                strict=config.execution.upload_strict,
-            ),
-            name="UploadMetrics",
+        upldwf = UploadIQMs(
+            in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict
         )
+        return upldwf.api_id
 
-        # fmt: off
-        workflow.ad_connections([
-            (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
+    # fmt: off
+    @pydra.mark.task
+    def upload_metrics(endpoint, auth_token, strict, in_iqms):
+        upload_iqms_result = upload_iqms(in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict)
+        return upload_iqms_result
+
+    # returns the result
+    workflow = upload_metrics(
+        endpoint=config.execution.webapi_url,
+        auth_token=config.execution.webapi_token,
+        strict=config.execution.upload_strict,
+        in_iqms=iqmswf.lzout.outputnode.out_file,
+)   # fmt: off
+    workflow.ad_connections([
+        (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
             (upldwf, anat_report_wf, [("api_id", "inputnode.api_id")]),
-        ])
-        # fmt: on
+    ])
 
-    return workflow
+    # # Original Code
+    # if not config.execution.no_sub:
+    #     from mriqc.interfaces.webapi import UploadIQMs
+
+    #     upldwf = pe.Node(
+    #         UploadIQMs(
+    #             endpoint=config.execution.webapi_url,
+    #             auth_token=config.execution.webapi_token,
+    #             strict=config.execution.upload_strict,
+    #         ),
+    #         name="UploadMetrics",
+    #     )
+
+    #     # fmt: off
+    #     workflow.ad_connections([
+    #         (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
+    #         (upldwf, anat_report_wf, [("api_id", "inputnode.api_id")]),
+    #     ])
+    #     # fmt: on
+
+    # return workflow
 
 
 def spatial_normalization(name="SpatialNormalization"):
