@@ -50,12 +50,10 @@ For the skull-stripping, we use ``afni_wf`` from ``niworkflows.anat.skullstrip``
     with mock_config():
         wf = afni_wf()
 """
-from pydra import Workflow, Node
-from pydra.engine import specs
-
-
-from mriqc import config
-from mriqc.interfaces import (
+import pydra
+from pydra import Workflow
+from pydra.tasks.mriqc.auto import (
+    UploadIQMs,
     ArtifactMask,
     ComputeQI2,
     ConformImage,
@@ -63,11 +61,14 @@ from mriqc.interfaces import (
     RotationMask,
     StructuralQC,
 )
-from mriqc.interfaces.reports import AddProvenance
-from mriqc.interfaces.datalad import DataladIdentityInterface
+
+from mriqc import config
+
+# from mriqc.interfaces.reports import AddProvenance
+# from mriqc.interfaces.datalad import DataladIdentityInterface
 from mriqc.messages import BUILDING_WORKFLOW
-from mriqc.workflows.utils import get_fwhmx
-from mriqc.workflows.anatomical.output import init_anat_report_wf
+from pydra.tasks.mriqc.workflows.utils import get_fwhmx
+from pydra.tasks.mriqc.workflows.anatomical.output import init_anat_report_wf
 
 # from nipype.interfaces import utility as niu
 # from nipype.pipeline import engine as pe
@@ -107,7 +108,7 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
     config.loggers.workflow.info(message)
 
     # Initialize workflow
-    workflow = pe.Workflow(
+    workflow = Workflow(
         name=name, input_spec=["in_file"]
     )  # specifying `input_spec` to contain ["in_file"] makes a field accessible at workflow.lzin.in_file
 
@@ -214,33 +215,38 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
     ])
     # fmt: on
 
-    # Upload metrics
-    @pydra.mark.task
-    def upload_iqms(in_iqms, endpoint, auth_token, strict):
-        from mriqc.interfaces.webapi import UploadIQMs
+    # # Upload metrics
+    # @pydra.mark.task
+    # def upload_iqms(in_iqms, endpoint, auth_token, strict):
+    #     from mriqc.interfaces.webapi import UploadIQMs
 
-        upldwf = UploadIQMs(
-            in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict
-        )
-        return upldwf.api_id
+    #     upldwf = UploadIQMs(
+    #         in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict
+    #     )
+    #     return upldwf.api_id
 
-    # fmt: off
-    @pydra.mark.task
-    def upload_metrics(endpoint, auth_token, strict, in_iqms):
-        upload_iqms_result = upload_iqms(in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict)
-        return upload_iqms_result
+    # # fmt: off
+    # @pydra.mark.task
+    # def upload_metrics(endpoint, auth_token, strict, in_iqms):
+    #     upload_iqms_result = upload_iqms(in_iqms=in_iqms, endpoint=endpoint, auth_token=auth_token, strict=strict)
+    #     return upload_iqms_result
 
     # returns the result
-    workflow = upload_metrics(
-        endpoint=config.execution.webapi_url,
-        auth_token=config.execution.webapi_token,
-        strict=config.execution.upload_strict,
-        in_iqms=iqmswf.lzout.outputnode.out_file,
-)   # fmt: off
-    workflow.ad_connections([
-        (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
-            (upldwf, anat_report_wf, [("api_id", "inputnode.api_id")]),
-    ])
+    workflow.add(
+        UploadIQMs(
+            endpoint=config.execution.webapi_url,
+            auth_token=config.execution.webapi_token,
+            strict=config.execution.upload_strict,
+            in_iqms=workflow.iqmswf.lzout.outputnode.out_file,
+            name="upldwf",
+        )
+    )
+    # workflow.ad_connections(
+    #     [
+    #         (iqmswf, upldwf, [("outputnode.out_file", "in_iqms")]),
+    #         (upldwf, anat_report_wf, [("api_id", "inputnode.api_id")]),
+    #     ]
+    # )
 
     # # Original Code
     # if not config.execution.no_sub:
@@ -262,7 +268,7 @@ def anat_qc_workflow(modality, name="anatMRIQC"):
     #     ])
     #     # fmt: on
 
-    # return workflow
+    return workflow
 
 
 def spatial_normalization(name="SpatialNormalization"):

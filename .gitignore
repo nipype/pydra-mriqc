@@ -139,3 +139,4 @@ dmypy.json
 
 /pydra/tasks/mriqc/interfaces
 /pydra/tasks/mriqc/_version.py
+/pydra/tasks/mriqc/auto
