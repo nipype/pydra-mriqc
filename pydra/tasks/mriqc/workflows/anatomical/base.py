@@ -61,6 +61,7 @@ from pydra.tasks.mriqc.auto import (
     RotationMask,
     StructuralQC,
 )
+from mriqc.messages import BUILDING_WORKFLOW
 
 from mriqc import config
 
@@ -69,6 +70,7 @@ from mriqc import config
 from mriqc.messages import BUILDING_WORKFLOW
 from pydra.tasks.mriqc.workflows.utils import get_fwhmx
 from pydra.tasks.mriqc.workflows.anatomical.output import init_anat_report_wf
+
 
 # from nipype.interfaces import utility as niu
 # from nipype.pipeline import engine as pe
@@ -282,36 +284,37 @@ def spatial_normalization(name="SpatialNormalization"):
 
     # Define workflow interface
     # workflow = pe.Workflow(name=name)
-    workflow = Workflow(name=name)
+    workflow = Workflow(name=name, input_spec=input_spec)
 
-    # Define input and output nodes
-    inputnode = Node(interface=input_spec, name="inputnode")
+    # # Define input and output nodes
+    # inputnode = Node(interface=input_spec, name="inputnode")
 
-    # inputnode = pe.Node(
-    # niu.IdentityInterface(fields=["moving_image", "moving_mask", "modality"]),
-    # name="inputnode",
-    # )
-    outputnode = Node(interface=output_spec, name="outputnode")
+    # # inputnode = pe.Node(
+    # # niu.IdentityInterface(fields=["moving_image", "moving_mask", "modality"]),
+    # # name="inputnode",
+    # # )
+    # outputnode = Node(interface=output_spec, name="outputnode")
 
     # outputnode = pe.Node(
     # niu.IdentityInterface(fields=["out_tpms", "out_report", "ind2std_xfm"]),
     # name="outputnode",
     # )
 
-    # Spatial normalization
-    @pydra.mark.task
-    def spatial_normalization(
-        flavor,
-        num_threads,
-        ants_float,
-        template,
-        generate_report,
-        species,
-        tpl_id,
-    ):
+    # # Spatial normalization
+    # @pydra.mark.task
+    # def spatial_normalization(
+    #     flavor,
+    #     num_threads,
+    #     ants_float,
+    #     template,
+    #     generate_report,
+    #     species,
+    #     tpl_id,
+    # ):
 
-        # no pe.node here
-        norm = RobustMNINormalization(
+    # no pe.node here
+    workflow.add(
+        RobustMNINormalization(
             flavor=["testing", "fast"][config.execution.debug],
             num_threads=config.nipype.omp_nthreads,
             float=config.execution.ants_float,
@@ -322,17 +325,18 @@ def spatial_normalization(name="SpatialNormalization"):
             num_threads=config.nipype.omp_nthreads,
             mem_gb=3,
         )
-        if config.workflow.species.lower() == "human":
-            norm.inputs.reference_mask = str(
-                get_template(tpl_id, resolution=2, desc="brain", suffix="mask")
-            )
-        else:
-            norm.inputs.reference_image = str(get_template(tpl_id, suffix="T2w"))
-            norm.inputs.reference_mask = str(
-                get_template(tpl_id, desc="brain", suffix="mask")[0]
-            )
+    )
+    if config.workflow.species.lower() == "human":
+        norm.inputs.reference_mask = str(
+            get_template(tpl_id, resolution=2, desc="brain", suffix="mask")
+        )
+    else:
+        norm.inputs.reference_image = str(get_template(tpl_id, suffix="T2w"))
+        norm.inputs.reference_mask = str(
+            get_template(tpl_id, desc="brain", suffix="mask")[0]
+        )
 
-        return norm
+    return workflow
 
 
 # Create a Pydra workflow
@@ -368,6 +372,211 @@ with pydra.Submitter(plugin="cf") as sub:
     wf(submitter=sub)
 
     #### up to here (20/03/2024)
+
+    # Draft conversion
+
+    import pydra
+
+
+@pydra.mark.task
+def project_tpm_to_t1w_space(template_id, species, workflow_name):
+    from niworkflows.interfaces.ants import ApplyTransforms
+    from mriqc.utils.misc import get_template
+
+    if species.lower() == "human":
+        resolution = 1
+    else:
+        resolution = None
+
+    tpms_std2t1w = ApplyTransforms(
+        dimension=3,
+        default_value=0,
+        interpolation="Gaussian",
+        float=config.execution.ants_float,
+    )
+    tpms_std2t1w.inputs.input_image = [
+        str(p)
+        for p in get_template(
+            template_id,
+            suffix="probseg",
+            resolution=resolution,
+            label=["CSF", "GM", "WM"],
+        )
+    ]
+    return tpms_std2t1w
+
+
+@pydra.mark.task
+def project_segmentation_to_t1w_space(template_id, species, workflow_name):
+    from niworkflows.interfaces.ants import ApplyTransforms
+    from mriqc.utils.misc import get_template
+
+    if species.lower() == "human":
+        resolution = 1
+    else:
+        resolution = None
+
+    tpms_std2t1w = ApplyTransforms(
+        dimension=3,
+        default_value=0,
+        interpolation="Linear",
+        float=config.execution.ants_float,
+    )
+    tpms_std2t1w.inputs.input_image = [
+        str(p)
+        for p in get_template(
+            template_id,
+            suffix="probseg",
+            resolution=resolution,
+            label=["CSF", "GM", "WM"],
+        )
+    ]
+    return tpms_std2t1w
+
+
+@pydra.mark.task
+def init_brain_tissue_segmentation(template_id, species, workflow_name):
+    from nipype.interfaces.ants import Atropos
+
+    workflow = pydra.Workflow(name=workflow_name)
+
+    format_tpm_names = pydra.Node(
+        name="format_tpm_names",
+        function=_format_tpm_names,
+        input_names=["in_files"],
+        output_names=["file_format"],
+        iterfield=["in_files"],
+    )
+    format_tpm_names.inputs.in_files = get_template(
+        template_id,
+        suffix="probseg",
+        resolution=(1 if species.lower() == "human" else None),
+        label=["CSF", "GM", "WM"],
+    )
+
+    segment = pydra.Node(
+        Atropos(
+            initialization="PriorProbabilityImages",
+            number_of_tissue_classes=3,
+            prior_weighting=0.1,
+            mrf_radius=[1, 1, 1],
+            mrf_smoothing_factor=0.01,
+            save_posteriors=True,
+            out_classified_image_name="segment.nii.gz",
+            output_posteriors_name_template="segment_%02d.nii.gz",
+            num_threads=config.nipype.omp_nthreads,
+        ),
+        name="segmentation",
+    )
+
+    workflow.add(format_tpm_names)
+    workflow.add(segment)
+    workflow.connect(format_tpm_names, "file_format", segment, "prior_image")
+
+    return workflow
+
+
+@pydra.mark.task
+def compute_iqms(template_id, species, workflow_name):
+    from niworkflows.interfaces.bids import ReadSidecarJSON
+    from mriqc.interfaces.anatomical import Harmonize
+    from mriqc.workflows.utils import _tofloat
+    from niworkflows.interfaces.bids import ReadSidecarJSON
+    from mriqc.interfaces.utils import AddProvenance
+    from mriqc.interfaces.anatomical import ComputeQI2
+    from mriqc.workflows.utils import _pop
+
+    inputnode = pydra.Input(
+        name="inputnode",
+        spec=[
+            "in_file",
+            "brainmask",
+            "airmask",
+            "artmask",
+            "headmask",
+            "rotmask",
+            "hatmask",
+            "segmentation",
+            "inu_corrected",
+            "in_inu",
+            "pvms",
+            "metadata",
+            "std_tpms",
+        ],
+    )
+    outputnode = pydra.Output(name="outputnode", spec=["out_file", "noisefit"])
+
+    meta = pydra.Node(
+        ReadSidecarJSON(index_db=config.execution.bids_database_dir), name="metadata"
+    )
+
+    addprov = pydra.Node(
+        AddProvenance(), name="provenance", run_without_submitting=True
+    )
+
+    getqi2 = pydra.Node(ComputeQI2(), name="ComputeQI2")
+
+    measures = pydra.Node(StructuralQC(human=species.lower() == "human"), "measures")
+
+    datasink = pydra.Node(
+        IQMFileSink(
+            out_dir=config.execution.output_dir,
+            dataset=config.execution.dsname,
+        ),
+        name="datasink",
+        run_without_submitting=True,
+    )
+
+    workflow = pydra.Workflow(name=workflow_name)
+    workflow.add(meta, addprov, getqi2, measures, datasink)
+
+    return workflow
+
+
+@pydra.mark.task
+def headmsk_wf(name="HeadMaskWorkflow", omp_nthreads=1):
+    from niworkflows.interfaces.nibabel import ApplyMask
+
+    inputnode = pydra.Input(name="inputnode", spec=["in_file", "brainmask", "in_tpms"])
+    outputnode = pydra.Output(name="outputnode", spec=["out_file", "out_denoised"])
+
+    enhance = pydra.Node(
+        niu.Function(
+            input_names=["in_file", "wm_tpm"],
+            output_names=["out_file"],
+            function=_enhance,
+        ),
+        name="Enhance",
+        num_threads=omp_nthreads,
+    )
+
+    gradient = pydra.Node(
+        niu.Function(
+            input_names=["in_file", "brainmask", "sigma"],
+            output_names=["out_file"],
+            function=image_gradient,
+        ),
+        name="Grad",
+        num_threads=omp_nthreads,
+    )
+
+    thresh = pydra.Node(
+        niu.Function(
+            input_names=["in_file", "brainmask", "aniso", "thresh"],
+            output_names=["out_file"],
+            function=gradient_threshold,
+        ),
+        name="GradientThreshold",
+        num_threads=omp_nthreads,
+    )
+
+    apply_mask = pydra.Node(ApplyMask(), name="apply_mask")
+
+    workflow = pydra.Workflow(name=name)
+    workflow.add(enhance, gradient, thresh, apply_mask)
+
+    return workflow
+    # end of draft conversion
 
     # Project standard TPMs into T1w space
     tpms_std2t1w = pe.MapNode(
