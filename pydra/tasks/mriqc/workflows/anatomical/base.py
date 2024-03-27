@@ -945,37 +945,47 @@ def headmsk_wf(name="HeadMaskWorkflow", omp_nthreads=1):
 def airmsk_wf(name="AirMaskWorkflow"):
     workflow = pydra.Workflow(name=name)
 
-    inputnode = pydra.Node(
-        interface=specs.IdentityInterface(
-            fields=[
-                "in_file",
-                "in_mask",
-                "head_mask",
-                "ind2std_xfm",
-            ]
-        ),
-        name="inputnode",
-    )
-    outputnode = pydra.Node(
-        interface=specs.IdentityInterface(fields=["hat_mask", "air_mask", "art_mask", "rot_mask"]),
-        name="outputnode",
-    )
+    # inputnode = pydra.Node(
+    #     interface=specs.IdentityInterface(
+    #         fields=[
+    #             "in_file",
+    #             "in_mask",
+    #             "head_mask",
+    #             "ind2std_xfm",
+    #         ]
+    #     ),
+    #     name="inputnode",
+    # )
+    # outputnode = pydra.Node(
+    #     interface=specs.IdentityInterface(fields=["hat_mask", "air_mask", "art_mask", "rot_mask"]),
+    #     name="outputnode",
+    # )
 
-    rotmsk = ShellCommandTask(name="RotationMask", executable="RotationMask")
-    qi1 = ShellCommandTask(name="ArtifactMask", executable="ArtifactMask")
+    # rotmsk = ShellCommandTask(name="RotationMask", executable="RotationMask")
+    # qi1 = ShellCommandTask(name="ArtifactMask", executable="ArtifactMask")
 
-    workflow.add(rotmsk)
-    workflow.add(qi1)
+    workflow.add(RotationMask(name="rotmsk"))
+    workflow.add(ArtifactMask(name="qi1"))
 
-    workflow.inputs += [("inputnode.in_file", inputnode.inputs.in_file)]
-    workflow.inputs += [("inputnode.in_file", qi1.inputs.in_file)]
-    workflow.inputs += [("inputnode.head_mask", qi1.inputs.head_mask)]
-    workflow.inputs += [("inputnode.ind2std_xfm", qi1.inputs.ind2std_xfm)]
+    workflow.rotmsk.inputs.in_file = workflow.lzin.in_file
+    workflow.qi1.inputs.in_file = workflow.lzin.in_file
+    workflow.qi1.inputs.head_mask = workflow.lzin.head_mask
+    workflow.qi1.inputs.ind2std_xfm = workflow.lzin.ind2std_xfm
 
-    workflow.outputs += [("rotmsk.out_file", outputnode.inputs.rot_mask)]
-    workflow.outputs += [("qi1.out_hat_msk", outputnode.inputs.hat_mask)]
-    workflow.outputs += [("qi1.out_air_msk", outputnode.inputs.air_mask)]
-    workflow.outputs += [("qi1.out_art_msk", outputnode.inputs.art_mask)]
+    workflow.rotmsk.inputs.in_file = workflow.rotmsk.out_file.lzout.in_file
+    workflow.qi1.inputs.in_file = workflow.qi1.out_hat_msk.lzout.in_file
+    workflow.qi1.inputs.headmask = workflow.qi1.out_air_msk.lzout.headmask
+    workflow.qi1.inputs.ind2std_xfm = workflow.qi1.out_art_msk.lzout.ind2std_xfm
+
+    # workflow.inputs += [("inputnode.in_file", inputnode.inputs.in_file)]
+    # workflow.inputs += [("inputnode.in_file", qi1.inputs.in_file)]
+    # workflow.inputs += [("inputnode.head_mask", qi1.inputs.head_mask)]
+    # workflow.inputs += [("inputnode.ind2std_xfm", qi1.inputs.ind2std_xfm)]
+
+    # workflow.outputs += [("rotmsk.out_file", outputnode.inputs.rot_mask)]
+    # workflow.outputs += [("qi1.out_hat_msk", outputnode.inputs.hat_mask)]
+    # workflow.outputs += [("qi1.out_air_msk", outputnode.inputs.air_mask)]
+    # workflow.outputs += [("qi1.out_art_msk", outputnode.inputs.art_mask)]
 
     return workflow
 
