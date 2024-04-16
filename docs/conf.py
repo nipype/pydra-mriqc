@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = "pydra-anatomical"
+project = "pydra-mriqc"
 copyright = "2020, Xihe Xie"
 author = "Xihe Xie"
 

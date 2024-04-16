@@ -1,4 +1,4 @@
-Welcome to pydra-anatomical's documentation!
+Welcome to pydra-mriqc's documentation!
 =========================================
 
 .. toctree::
