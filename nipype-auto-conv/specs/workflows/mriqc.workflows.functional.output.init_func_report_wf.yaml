@@ -6,12 +6,15 @@ nipype_name: init_func_report_wf
 nipype_module: mriqc.workflows.functional.output
 # Name of the node that is to be considered the input of the workflow, i.e. its outputs will be the inputs of the workflow
 input_nodes:
-  ? ''
-  : inputnode
+  "": inputnode
 # Name of the node that is to be considered the output of the workflow, i.e. its inputs will be the outputs of the workflow
 output_nodes:
-  ? ''
-  : outputnode
+  mean: ds_report_mean
+  stdev: ds_report_stdev
+  background: ds_report_background
+  zoomed: ds_report_zoomed
+  carpet: ds_report_carpet
+
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace: null
 # name of the workflow variable that is returned

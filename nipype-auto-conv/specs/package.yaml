@@ -3,6 +3,24 @@ name: pydra.tasks.mriqc
 # name of the nipype package to generate from (e.g. mriqc)
 nipype_name: mriqc
 # The name of the global struct/dict that contains workflow inputs that are to be converted to inputs of the function along with the type of the struct, either "dict" or "class"
-config_params: null
+config_params:
+  wf:
+    varname: config.workflow
+    type: struct
+    module: mriqc
+  exec:
+    varname: config.execution
+    type: struct
+    module: mriqc
+    defaults:
+      work_dir: Path.cwd()
+  nipype:
+    varname: config.nipype
+    type: struct
+    module: mriqc
+  env:
+    varname: config.environment
+    type: struct
+    module: mriqc
 # Mappings between nipype packages and their pydra equivalents. Regular expressions are supported
 import_translations: null
