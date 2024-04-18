@@ -23,4 +23,9 @@ config_params:
     type: struct
     module: mriqc
 # Mappings between nipype packages and their pydra equivalents. Regular expressions are supported
-import_translations: null
+import_translations:
+  - [nireports, pydra.tasks.nireports]
+  - [niworkflows, pydra.tasks.niworkflows]
+find_replace:
+  - [config\.loggers\.\w+\., logger.]
+  - [config.to_filename\(\), ""]
