@@ -20,6 +20,9 @@ output_nodes:
   noisefit: ds_report_noisefit
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
+  - ["config = NipypeConfig\\(\\)", ""]
+  - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
+  - ["logging = Logging\\(config\\)", ""]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

@@ -20,7 +20,10 @@ output_nodes:
   background: ds_report_background
   bmask: ds_report_bmask
 # Generic regular expression substitutions to be run over the code before it is processed
-find_replace: null
+find_replace:
+  - ["config = NipypeConfig\\(\\)", ""]
+  - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
+  - ["logging = Logging\\(config\\)", ""]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

@@ -29,3 +29,6 @@ import_translations:
 find_replace:
   - [config\.loggers\.\w+\., logger.]
   - [config.to_filename\(\), ""]
+  - ["config = NipypeConfig\\(\\)", ""]
+  - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
+  - ["logging = Logging\\(config\\)", ""]
