@@ -86,3 +86,7 @@ find_replace:
       "'One or more voxel dimensions (%f, %f, %f) are smaller than the requested voxel size (%f) - diff=(%f, %f, %f)'",
     ]
   - ["messages.VOXEL_SIZE_OK", "'Voxel size is large enough.'"]
+  - [
+      "load_data = Loader\\(\"mriqc\"\\)",
+      'load_data = Loader("pydra.tasks.mriqc")',
+    ]
