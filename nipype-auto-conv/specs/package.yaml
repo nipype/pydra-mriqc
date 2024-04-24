@@ -18,6 +18,8 @@ config_params:
     varname: config.nipype
     type: struct
     module: mriqc
+    defaults:
+      omp_nthreads: 1
   env:
     varname: config.environment
     type: struct
@@ -42,6 +44,8 @@ find_replace:
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
   - ["class _ReadDWIMetadataOutputSpec.+?(?=\\n\\n)", ""]
+  - ["dataset = wf_inputs\\.get\\(.*?_datalad_get\\(\\w+\\)", ""]
+  - ["DWI(Denoise|Heatmap)", "Dwi\\1"]
 omit_modules:
   - "mriqc.config"
 import_find_replace:
