@@ -6,18 +6,18 @@ nipype_name: init_anat_report_wf
 nipype_module: mriqc.workflows.anatomical.output
 # Name of the node that is to be considered the input of the workflow, i.e. its outputs will be the inputs of the workflow
 input_nodes:
-  "": inputnode
+  inputnode: ""
 # Name of the node that is to be considered the output of the workflow, i.e. its inputs will be the outputs of the workflow
 output_nodes:
-  zoom: ds_report_zoomed
-  bg: ds_report_background
-  segm: ds_report_segm
-  bmask: ds_report_bmask
-  artmask: ds_report_artmask
-  airmask: ds_report_airmask
-  headmask: ds_report_headmask
-  norm: ds_report_norm
-  noisefit: ds_report_noisefit
+  ds_report_zoomed: zoom
+  ds_report_background: bg
+  ds_report_segm: segm
+  ds_report_bmask: bmask
+  ds_report_artmask: artmask
+  ds_report_airmask: airmask
+  ds_report_headmask: headmask
+  ds_report_norm: norm
+  ds_report_noisefit: noisefit
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - ["config = NipypeConfig\\(\\)", ""]

@@ -45,7 +45,7 @@ find_replace:
   - ["logging = Logging\\(config\\)", ""]
   - ["class _ReadDWIMetadataOutputSpec.+?(?=\\n\\n)", ""]
   - ["dataset = wf_inputs\\.get\\(.*?_datalad_get\\(\\w+\\)", ""]
-  - ["DWI(Denoise|Heatmap)", "Dwi\\1"]
+  - ["DWIDenoise", "DwiDenoise"]
 omit_modules:
   - "mriqc.config"
 import_find_replace:

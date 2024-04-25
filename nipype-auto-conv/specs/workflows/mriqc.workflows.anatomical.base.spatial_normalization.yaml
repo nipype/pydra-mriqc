@@ -6,10 +6,10 @@ nipype_name: spatial_normalization
 nipype_module: mriqc.workflows.anatomical.base
 # Name of the node that is to be considered the input of the workflow, i.e. its outputs will be the inputs of the workflow
 input_nodes:
-  "": inputnode
+  inputnode: ""
 # Name of the node that is to be considered the output of the workflow, i.e. its inputs will be the outputs of the workflow
 output_nodes:
-  "": outputnode
+  outputnode: ""
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - ["config = NipypeConfig\\(\\)", ""]
