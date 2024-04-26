@@ -19,3 +19,5 @@ find_replace:
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported
 external_nested_workflows: null
+test_inputs:
+  omp_nthreads: 1
