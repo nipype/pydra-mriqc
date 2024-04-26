@@ -18,8 +18,6 @@ config_params:
     varname: config.nipype
     type: struct
     module: mriqc
-    defaults:
-      omp_nthreads: 1
   env:
     varname: config.environment
     type: struct
