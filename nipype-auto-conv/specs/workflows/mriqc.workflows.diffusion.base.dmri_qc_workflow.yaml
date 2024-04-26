@@ -18,6 +18,14 @@ find_replace:
   - ["config = NipypeConfig\\(\\)", ""]
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
+  - [
+      "workflow\\.dwidenoise\\.inputs\\.in_file",
+      "workflow.dwidenoise.inputs.dwi",
+    ]
+  - [
+      "in_file=workflow\\.dwidenoise\\.lzout\\.out_file",
+      "in_file=workflow.dwidenoise.lzout.out",
+    ]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported
