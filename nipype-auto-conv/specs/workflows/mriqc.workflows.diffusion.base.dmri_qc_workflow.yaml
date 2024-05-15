@@ -15,6 +15,10 @@ inputs:
     node_name: load_bmat
     field: out_bvec_file
     type: medimage/bvec
+  qspace_neighbors:
+    node_name: load_bmat
+    field: qspace_neighbors
+    # type: field/integer+list-of.list-of
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - [from pydra.tasks.mriqc.messages import BUILDING_WORKFLOW, ""]
@@ -30,6 +34,10 @@ find_replace:
       "in_file=workflow\\.dwidenoise\\.lzout\\.out_file",
       "in_file=workflow.dwidenoise.lzout.out",
     ]
+  # - [
+  #     "workflow.set_output\\(\\n(\\s*)\\[\\(\"dwi_report_wf_spikes_report\", workflow.dwi_report_wf.lzout.spikes_report\\)\\n(\\s*)\\]\\n(\\s*)\\)",
+  #     "if wf_fft_spikes_detector:\\n        workflow.set_output(\\n    \\1[(\"dwi_report_wf_spikes_report\", workflow.dwi_report_wf.lzout.spikes_report)\\n    \\2]\\n    \\3)",
+  #   ]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

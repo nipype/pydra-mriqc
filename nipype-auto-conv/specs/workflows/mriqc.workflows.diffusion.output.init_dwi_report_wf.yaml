@@ -49,6 +49,9 @@ find_replace:
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
   - ["out_file=workflow\\.lzin\\.epi_mean,\\n", ""] # multiple connections to out_file in workflow
+  - ["if True:\\n\\s*return workflow", ""]
+  - ["if wf_fft_spikes_detector:", "if True:  # wf_fft_spikes_detector:"]
+  - ["if not verbose:", "if False:  # not verbose:"]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

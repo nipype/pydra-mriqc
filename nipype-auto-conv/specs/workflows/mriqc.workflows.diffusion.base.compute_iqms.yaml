@@ -13,12 +13,6 @@ outputs:
     export: true
     replaces:
       - [outputnode, out_file]
-  noise_report:
-    node_name: getqi2
-    field: out_file
-    export: true
-    replaces:
-      - [outputnode, noisefit]
   noise_floor:
     node_name: estimate_sigma
     field: out
