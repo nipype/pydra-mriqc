@@ -16,7 +16,7 @@ outputs:
     field: out_file
     export: true
   segm_report:
-    node_name: plot_artmask
+    node_name: plot_segm
     field: out_file
     export: true
   bmask_report:
@@ -40,6 +40,7 @@ find_replace:
   - ["config = NipypeConfig\\(\\)", ""]
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
+  - ["if not verbose:\\n\\s*return workflow", ""]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported
