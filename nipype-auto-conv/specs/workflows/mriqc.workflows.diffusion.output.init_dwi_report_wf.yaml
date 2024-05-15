@@ -11,33 +11,38 @@ outputs:
   snr_report:
     node_name: mosaic_snr
     field: out_report
+    export: true
   noise_report:
     node_name: mosaic_noise
     field: out_file
+    export: true
   fa_report:
     node_name: mosaic_fa
     field: out_file
+    export: true
   md_report:
     node_name: mosaic_md
     field: out_file
+    export: true
   heatmap_report:
     node_name: plot_heatmap
     field: out_file
+    export: true
   spikes_report:
     node_name: mosaic_spikes
     field: out_file
-  norm_report:
-    node_name: inputnode
-    field: mni_report
+    export: true
   carpet_report:
     node_name: bigplot
     field: out_file
+    export: true
   # bg_report:  # seems to be the same as the noise report
   #   node_name: mosaic_noise
   #   field: out_file
   bmask_report:
     node_name: plot_bmask
     field: out_file
+    export: true
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - ["config = NipypeConfig\\(\\)", ""]

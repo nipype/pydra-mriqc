@@ -8,6 +8,23 @@ nipype_module: mriqc.workflows.functional.base
 input_node: inputnode
 # # Name of the node that is to be considered the output of the workflow, i.e. its inputs will be the outputs of the workflow
 output_node: outputnode
+outputs:
+  epi_parc:
+    node_name: invt
+    field: output_image
+    replaces:
+      - ["outputnode", "epi_parc"]
+  epi_mni:
+    node_name: norm
+    field: warped_image
+    replaces:
+      - ["outputnode", "epi_mri"]
+  report:
+    node_name: norm
+    field: mni_report
+    export: true
+    replaces:
+      - ["outputnode", "out_report"]
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - ["config = NipypeConfig\\(\\)", ""]

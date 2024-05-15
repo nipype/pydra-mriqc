@@ -22,7 +22,7 @@ inputs:
     # from the nipype interface, but you may want to be more specific, particularly
     # for file types, where specifying the format also specifies the file that will be
     # passed to the field in the automatically generated unittests.
-    in_iqms: generic/file
+    in_iqms: dict
     # type=file|default=<undefined>: the input IQMs-JSON file
   callable_defaults:
   # dict[str, str] - names of methods/callable classes defined in the adjacent `*_callables.py`

@@ -8,32 +8,33 @@ nipype_module: mriqc.workflows.anatomical.output
 input_node: inputnode
 outputs:
   zoom_report:
-    node_name: ds_report_zoomed
-    field: in_file
+    node_name: mosaic_zoom
+    field: out_file
+    export: true
   bg_report:
-    node_name: ds_report_background
-    field: in_file
+    node_name: mosaic_noise
+    field: out_file
+    export: true
   segm_report:
-    node_name: ds_report_segm
-    field: in_file
+    node_name: plot_artmask
+    field: out_file
+    export: true
   bmask_report:
-    node_name: ds_report_bmask
-    field: in_file
+    node_name: plot_bmask
+    field: out_file
+    export: true
   artmask_report:
-    node_name: ds_report_artmask
-    field: in_file
+    node_name: plot_artmask
+    field: out_file
+    export: true
   airmask_report:
-    node_name: ds_report_airmask
-    field: in_file
+    node_name: plot_airmask
+    field: out_file
+    export: true
   headmask_report:
-    node_name: ds_report_headmask
-    field: in_file
-  norm_report:
-    node_name: ds_report_norm
-    field: in_file
-  noise_report:
-    node_name: ds_report_noisefit
-    field: in_file
+    node_name: plot_headmask
+    field: out_file
+    export: true
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - ["config = NipypeConfig\\(\\)", ""]

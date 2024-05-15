@@ -6,8 +6,15 @@ nipype_name: fmri_qc_workflow
 nipype_module: mriqc.workflows.functional.base
 # Name of the node that is to be considered the input of the workflow, i.e. its outputs will be the inputs of the workflow
 input_node: inputnode
-# Name of the node that is to be considered the output of the workflow, i.e. its inputs will be the outputs of the workflow
-output_node: outputnode
+inputs:
+  bvals:
+    node_name: load_bmat
+    field: out_bval_file
+    type: medimage/bval
+  bvecs:
+    node_name: load_bmat
+    field: out_bvec_file
+    type: medimage/bvec
 # Generic regular expression substitutions to be run over the code before it is processed
 find_replace:
   - [from pydra.tasks.mriqc.messages import BUILDING_WORKFLOW, ""]
