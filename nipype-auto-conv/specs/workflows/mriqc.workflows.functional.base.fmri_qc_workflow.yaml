@@ -19,6 +19,10 @@ find_replace:
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
   - ["full_files = \\[\\].*?= full_files", ""]
+  - [
+      "# fmt: off\\n\\s*workflow.set_output\\(\\[\\('iqmswf_out_file', workflow.iqmswf.lzout.out_file\\)\\]\\)",
+      "",
+    ]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

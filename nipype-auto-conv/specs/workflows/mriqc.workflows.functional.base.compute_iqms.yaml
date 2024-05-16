@@ -13,12 +13,6 @@ outputs:
     export: true
     replaces:
       - [outputnode, out_file]
-  noise_report:
-    node_name: getqi2
-    field: out_file
-    export: true
-    replaces:
-      - [outputnode, noisefit]
   spikes:
     node_name: spikes_fft
     field: out_spikes
@@ -31,13 +25,13 @@ outputs:
     export: true
     replaces:
       - ["outputnode", "out_fft"]
-  n_spikes:
+  spikes_num:
     node_name: spikes_fft
-    field: spikes_num
+    field: n_spikes
     type: field/integer
     export: true
     replaces:
-      - ["outputnode", "n_spikes"]
+      - ["outputnode", "spikes_num"]
   outliers:
     node_name: outliers
     field: out_file
@@ -55,6 +49,10 @@ find_replace:
   - ["config = NipypeConfig\\(\\)", ""]
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
+  - [
+      "if wf_fft_spikes_detector:",
+      "if True:  # wf_fft_spikes_detector: - disabled to ensure all outputs are generated",
+    ]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported

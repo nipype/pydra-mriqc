@@ -38,6 +38,10 @@ find_replace:
   - ["config = NipypeConfig\\(\\)", ""]
   - ["iflogger = logging.getLogger\\(\"nipype.interface\"\\)", ""]
   - ["logging = Logging\\(config\\)", ""]
+  - [
+      "if wf_fft_spikes_detector:",
+      "if True:  # wf_fft_spikes_detector: - disabled so output is always created",
+    ]
 # name of the workflow variable that is returned
 workflow_variable: workflow
 # the names of the nested workflows that are defined in other modules and need to be imported
