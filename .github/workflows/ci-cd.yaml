@@ -16,7 +16,6 @@ on:
     types: [create-release]
 
 jobs:
-
   nipype-conv:
     runs-on: ubuntu-latest
     steps:
@@ -155,6 +154,7 @@ jobs:
         name: pydra-anatomical
 
   deploy:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
