@@ -30,7 +30,7 @@ jobs:
     - name: Install build dependencies
       run: python -m pip install --upgrade pip
     - name: Install requirements
-      run: python -m pip install ./related-packages/fileformats -r ./nipype-auto-conv/requirements.txt
+      run: python -m pip install -r ./nipype-auto-conv/requirements.txt
     - name: Run automatic Nipype > Pydra conversion
       run: ./nipype-auto-conv/generate
     - uses: actions/upload-artifact@v3
@@ -77,41 +77,12 @@ jobs:
         python -c "import pydra as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
     - name: Install task package
       run: |
-        pip install "./related-packages/fileformats[dev]" "related-packages/fileformats-extras[dev]"
         pip install ${{ matrix.pip-flags }} ".[dev]"
-        python -c "import pydra.tasks.anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
         python -c "import pydra as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
-        python -c "import fileformats.medimage_anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
-        python -c "import fileformats.extras.medimage_anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
-  
-  fileformats-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.8', '3.11']
-    steps:
-    - uses: actions/checkout@v4
-    - name: Revert version to most recent tag on upstream update
-      if: github.event_name == 'repository_dispatch'
-      run: git checkout $(git tag -l | tail -n 1 | awk -F post '{print $1}')
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-    - name: Install task package
-      run: |
-        pip install "./related-packages/fileformats[test]" "./related-packages/fileformats-extras[test]"
-        python -c "import fileformats.medimage_anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
-    - name: Test fileformats with pytest
-      run: |
-        cd ./fileformats
-        pytest -sv --cov fileformats.medimage_anatomical --cov fileformats.extras.medimage_anatomical --cov-report xml .
 
+  
   test:
-    needs: [nipype-conv, fileformats-test]
+    needs: [nipype-conv]
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -170,7 +141,7 @@ jobs:
         python -m pip install --upgrade pip
     - name: Install task package
       run: |
-        pip install "./related-packages/fileformats" "./related-packages/fileformats-extras" ".[test]"
+        pip install ".[test]"
         python -c "import pydra.tasks.anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
         python -c "import pydra as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
     - name: Test with pytest
@@ -180,75 +151,10 @@ jobs:
     - uses: codecov/codecov-action@v3
       if: ${{ always() }}
       with:
-        files: coverage.xml,./fileformats/coverage.xml
+        files: coverage.xml
         name: pydra-anatomical
 
-  deploy-fileformats:
-    needs: [devcheck, test]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install build tools
-      run: python -m pip install build twine
-    - name: Build source and wheel distributions
-      run: python -m build ./related-packages/fileformats
-    - name: Check distributions
-      run: twine check ./related-packages/fileformats/dist/*
-    - name: Check for PyPI token on tag
-      id: deployable
-      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags')) || github.event_name == 'repository_dispatch'
-      env:
-        PYPI_API_TOKEN: "${{ secrets.PYPI_FILEFORMATS_API_TOKEN }}"
-      run: if [ -n "$PYPI_API_TOKEN" ]; then echo "DEPLOY=true" >> $GITHUB_OUTPUT; fi
-    - name: Upload to PyPI
-      if: steps.deployable.outputs.DEPLOY
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_FILEFORMATS_API_TOKEN }}
-        packages-dir: ./related-packages/fileformats/dist 
-
-  deploy-fileformats-extras:
-    needs: [deploy-fileformats]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install build tools
-      run: python -m pip install build twine
-    - name: Build source and wheel distributions
-      run: python -m build ./related-packages/fileformats-extras
-    - name: Check distributions
-      run: twine check ./related-packages/fileformats-extras/dist/*
-    - name: Check for PyPI token on tag
-      id: deployable
-      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags')) || github.event_name == 'repository_dispatch'
-      env:
-        PYPI_API_TOKEN: "${{ secrets.PYPI_FILEFORMATS_EXTRAS_API_TOKEN }}"
-      run: if [ -n "$PYPI_API_TOKEN" ]; then echo "DEPLOY=true" >> $GITHUB_OUTPUT; fi
-    - name: Upload to PyPI
-      if: steps.deployable.outputs.DEPLOY
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_FILEFORMATS_EXTRAS_API_TOKEN }}
-        packages-dir: ./related-packages/fileformats-extras/dist 
-
   deploy:
-    needs: [deploy-fileformats-extras]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
