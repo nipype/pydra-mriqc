@@ -12,10 +12,16 @@ dependencies = [
     "fileformats >=0.8.3",
     "fileformats-datascience >=0.1",
     "fileformats-medimage >=0.4.1",
+    "pydra-ants",
+    "pydra-afni",
+    "pydra-fsl",
+    "pydra-mrtrix3 >=3.0.3a0",
 ]
-license = {file = "LICENSE"}
-authors = [{name = "Nipype developers", email = "neuroimaging@python.org"}]
-maintainers = [{name = "Nipype developers", email = "neuroimaging@python.org"}]
+license = { file = "LICENSE" }
+authors = [{ name = "Nipype developers", email = "neuroimaging@python.org" }]
+maintainers = [
+    { name = "Nipype developers", email = "neuroimaging@python.org" },
+]
 keywords = ["pydra"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -30,10 +36,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = [
-    "black",
-    "pre-commit",
-]
+dev = ["black", "pre-commit"]
 doc = [
     "packaging",
     "sphinx >=2.1.2",
@@ -53,6 +56,9 @@ test = [
     "fileformats-extras",
     "fileformats-datascience-extras",
     "fileformats-medimage-extras",
+    "fileformats-medimage-afni-extras",
+    "fileformats-medimage-mrtrix3-extras",
+    "fileformats-medimage-fsl-extras",
 ]
 
 [tool.hatch.version]
@@ -74,9 +80,7 @@ ignore-words = ".codespell-ignorewords"
 
 [tool.flake8]
 doctests = true
-per-file-ignores = [
-    "__init__.py:F401,F403"
-]
+per-file-ignores = ["__init__.py:F401,F403"]
 max-line-length = 88
 select = "C,E,F,W,B,B950"
 extend-ignore = ['E203', 'E501', 'E129', 'W503']
