@@ -1,33 +1,25 @@
-# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
-# vi: set ft=python sts=4 ts=4 sw=4 et:
-#
-# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# We support and encourage derived works from this project, please read
-# about our expectations at
-#
-#     https://www.nipreps.org/community/licensing/
-#
-"""Writing out anatomical reportlets."""
-from mriqc import config
-from mriqc.interfaces import DerivativesDataSink
-from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu
+import attrs
+import logging
+from pathlib import Path
+from pydra.engine import Workflow
+import typing as ty
 
 
-def init_anat_report_wf(name: str = "anat_report_wf"):
+logger = logging.getLogger(__name__)
+
+
+def init_anat_report_wf(
+    airmask=attrs.NOTHING,
+    artmask=attrs.NOTHING,
+    brainmask=attrs.NOTHING,
+    exec_verbose_reports=False,
+    exec_work_dir=None,
+    headmask=attrs.NOTHING,
+    in_ras=attrs.NOTHING,
+    name: str = "anat_report_wf",
+    segmentation=attrs.NOTHING,
+    wf_species="human",
+):
     """
     Generate the components of the individual report.
 
@@ -39,241 +31,142 @@ def init_anat_report_wf(name: str = "anat_report_wf"):
             wf = init_anat_report_wf()
 
     """
-    from nireports.interfaces import PlotMosaic
+    from pydra.tasks.nireports.interfaces import PlotMosaic
 
     # from mriqc.interfaces.reports import IndividualReport
+    if exec_work_dir is None:
+        exec_work_dir = Path.cwd()
 
-    verbose = config.execution.verbose_reports
-    reportlets_dir = config.execution.work_dir / "reportlets"
-
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=[
-                "in_ras",
-                "brainmask",
-                "headmask",
-                "airmask",
-                "artmask",
-                "rotmask",
-                "segmentation",
-                "inu_corrected",
-                "noisefit",
-                "in_iqms",
-                "mni_report",
-                "api_id",
-                "name_source",
-            ]
-        ),
-        name="inputnode",
+    verbose = exec_verbose_reports
+    reportlets_dir = exec_work_dir / "reportlets"
+    workflow = Workflow(
+        name=name,
+        input_spec={
+            "airmask": ty.Any,
+            "artmask": ty.Any,
+            "brainmask": ty.Any,
+            "headmask": ty.Any,
+            "in_ras": ty.Any,
+            "segmentation": ty.Any,
+        },
+        output_spec={
+            "airmask_report": ty.Any,
+            "artmask_report": ty.Any,
+            "bg_report": ty.Any,
+            "bmask_report": ty.Any,
+            "headmask_report": ty.Any,
+            "segm_report": ty.Any,
+            "zoom_report": ty.Any,
+        },
+        airmask=airmask,
+        artmask=artmask,
+        brainmask=brainmask,
+        headmask=headmask,
+        in_ras=in_ras,
+        segmentation=segmentation,
     )
 
-    mosaic_zoom = pe.Node(
-        PlotMosaic(cmap="Greys_r"),
-        name="PlotMosaicZoomed",
+    workflow.add(
+        PlotMosaic(
+            cmap="Greys_r",
+            bbox_mask_file=workflow.lzin.brainmask,
+            in_file=workflow.lzin.in_ras,
+            name="mosaic_zoom",
+        )
     )
-
-    mosaic_noise = pe.Node(
-        PlotMosaic(only_noise=True, cmap="viridis_r"),
-        name="PlotMosaicNoise",
+    workflow.add(
+        PlotMosaic(
+            cmap="viridis_r",
+            only_noise=True,
+            in_file=workflow.lzin.in_ras,
+            name="mosaic_noise",
+        )
     )
-    if config.workflow.species.lower() in ("rat", "mouse"):
-        mosaic_zoom.inputs.view = ["coronal", "axial"]
-        mosaic_noise.inputs.view = ["coronal", "axial"]
-
-    ds_report_zoomed = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="zoomed",
-            datatype="figures",
-        ),
-        name="ds_report_zoomed",
-        run_without_submitting=True,
-    )
-
-    ds_report_background = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="background",
-            datatype="figures",
-        ),
-        name="ds_report_background",
-        run_without_submitting=True,
-    )
+    if wf_species.lower() in ("rat", "mouse"):
+        workflow.mosaic_zoom.inputs.view = ["coronal", "axial"]
+        workflow.mosaic_noise.inputs.view = ["coronal", "axial"]
 
     # fmt: off
-    workflow.connect([
-        # (inputnode, rnode, [("in_iqms", "in_iqms")]),
-        (inputnode, mosaic_zoom, [("in_ras", "in_file"),
-                                  ("brainmask", "bbox_mask_file")]),
-        (inputnode, mosaic_noise, [("in_ras", "in_file")]),
-        (inputnode, ds_report_zoomed, [("name_source", "source_file")]),
-        (inputnode, ds_report_background, [("name_source", "source_file")]),
-        (mosaic_zoom, ds_report_zoomed, [("out_file", "in_file")]),
-        (mosaic_noise, ds_report_background, [("out_file", "in_file")]),
-    ])
+    workflow.set_output([('zoom_report', workflow.mosaic_zoom.lzout.out_file)])
+    workflow.set_output([('bg_report', workflow.mosaic_noise.lzout.out_file)])
     # fmt: on
 
-    if not verbose:
-        return workflow
+    from pydra.tasks.nireports.interfaces import PlotContours
 
-    from nireports.interfaces import PlotContours
-
-    display_mode = "y" if config.workflow.species.lower() in ("rat", "mouse") else "z"
-    plot_segm = pe.Node(
+    display_mode = "y" if wf_species.lower() in ("rat", "mouse") else "z"
+    workflow.add(
         PlotContours(
+            colors=["r", "g", "b"],
+            cut_coords=10,
             display_mode=display_mode,
             levels=[0.5, 1.5, 2.5],
-            cut_coords=10,
-            colors=["r", "g", "b"],
-        ),
-        name="PlotSegmentation",
+            in_contours=workflow.lzin.segmentation,
+            in_file=workflow.lzin.in_ras,
+            name="plot_segm",
+        )
     )
 
-    ds_report_segm = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="segmentation",
-            datatype="figures",
-        ),
-        name="ds_report_segm",
-        run_without_submitting=True,
-    )
-
-    plot_bmask = pe.Node(
+    workflow.add(
         PlotContours(
-            display_mode=display_mode,
-            levels=[0.5],
             colors=["r"],
             cut_coords=10,
+            display_mode=display_mode,
+            levels=[0.5],
             out_file="bmask",
-        ),
-        name="PlotBrainmask",
+            in_contours=workflow.lzin.brainmask,
+            in_file=workflow.lzin.in_ras,
+            name="plot_bmask",
+        )
     )
 
-    ds_report_bmask = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="brainmask",
-            datatype="figures",
-        ),
-        name="ds_report_bmask",
-        run_without_submitting=True,
-    )
-
-    plot_artmask = pe.Node(
+    workflow.add(
         PlotContours(
-            display_mode=display_mode,
-            levels=[0.5],
             colors=["r"],
             cut_coords=10,
+            display_mode=display_mode,
+            levels=[0.5],
             out_file="artmask",
             saturate=True,
-        ),
-        name="PlotArtmask",
-    )
-
-    ds_report_artmask = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="artifacts",
-            datatype="figures",
-        ),
-        name="ds_report_artmask",
-        run_without_submitting=True,
+            in_contours=workflow.lzin.artmask,
+            in_file=workflow.lzin.in_ras,
+            name="plot_artmask",
+        )
     )
 
     # NOTE: humans switch on these two to coronal view.
-    display_mode = "y" if config.workflow.species.lower() in ("rat", "mouse") else "x"
-    plot_airmask = pe.Node(
+    display_mode = "y" if wf_species.lower() in ("rat", "mouse") else "x"
+    workflow.add(
         PlotContours(
-            display_mode=display_mode,
-            levels=[0.5],
             colors=["r"],
             cut_coords=6,
+            display_mode=display_mode,
+            levels=[0.5],
             out_file="airmask",
-        ),
-        name="PlotAirmask",
+            in_contours=workflow.lzin.airmask,
+            in_file=workflow.lzin.in_ras,
+            name="plot_airmask",
+        )
     )
 
-    ds_report_airmask = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="airmask",
-            datatype="figures",
-        ),
-        name="ds_report_airmask",
-        run_without_submitting=True,
-    )
-
-    plot_headmask = pe.Node(
+    workflow.add(
         PlotContours(
-            display_mode=display_mode,
-            levels=[0.5],
             colors=["r"],
             cut_coords=6,
+            display_mode=display_mode,
+            levels=[0.5],
             out_file="headmask",
-        ),
-        name="PlotHeadmask",
-    )
-
-    ds_report_headmask = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="head",
-            datatype="figures",
-        ),
-        name="ds_report_headmask",
-        run_without_submitting=True,
-    )
-
-    ds_report_norm = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="norm",
-            datatype="figures",
-        ),
-        name="ds_report_norm",
-        run_without_submitting=True,
-    )
-
-    ds_report_noisefit = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="noisefit",
-            datatype="figures",
-        ),
-        name="ds_report_noisefit",
-        run_without_submitting=True,
+            in_contours=workflow.lzin.headmask,
+            in_file=workflow.lzin.in_ras,
+            name="plot_headmask",
+        )
     )
 
     # fmt: off
-    workflow.connect([
-        (inputnode, ds_report_segm, [("name_source", "source_file")]),
-        (inputnode, ds_report_bmask, [("name_source", "source_file")]),
-        (inputnode, ds_report_artmask, [("name_source", "source_file")]),
-        (inputnode, ds_report_airmask, [("name_source", "source_file")]),
-        (inputnode, ds_report_headmask, [("name_source", "source_file")]),
-        (inputnode, ds_report_norm, [("mni_report", "in_file"),
-                                     ("name_source", "source_file")]),
-        (inputnode, ds_report_noisefit, [("noisefit", "in_file"),
-                                         ("name_source", "source_file")]),
-        (inputnode, plot_segm, [("in_ras", "in_file"),
-                                ("segmentation", "in_contours")]),
-        (inputnode, plot_bmask, [("in_ras", "in_file"),
-                                 ("brainmask", "in_contours")]),
-        (inputnode, plot_headmask, [("in_ras", "in_file"),
-                                    ("headmask", "in_contours")]),
-        (inputnode, plot_airmask, [("in_ras", "in_file"),
-                                   ("airmask", "in_contours")]),
-        (inputnode, plot_artmask, [("in_ras", "in_file"),
-                                   ("artmask", "in_contours")]),
-        (plot_bmask, ds_report_bmask, [("out_file", "in_file")]),
-        (plot_segm, ds_report_segm, [("out_file", "in_file")]),
-        (plot_artmask, ds_report_artmask, [("out_file", "in_file")]),
-        (plot_headmask, ds_report_headmask, [("out_file", "in_file")]),
-        (plot_airmask, ds_report_airmask, [("out_file", "in_file")]),
-    ])
+    workflow.set_output([('bmask_report', workflow.plot_bmask.lzout.out_file)])
+    workflow.set_output([('segm_report', workflow.plot_segm.lzout.out_file)])
+    workflow.set_output([('artmask_report', workflow.plot_artmask.lzout.out_file)])
+    workflow.set_output([('headmask_report', workflow.plot_headmask.lzout.out_file)])
+    workflow.set_output([('airmask_report', workflow.plot_airmask.lzout.out_file)])
     # fmt: on
 
     return workflow

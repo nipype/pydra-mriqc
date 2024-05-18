@@ -1,38 +1,47 @@
-# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
-# vi: set ft=python sts=4 ts=4 sw=4 et:
-#
-# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# We support and encourage derived works from this project, please read
-# about our expectations at
-#
-#     https://www.nipreps.org/community/licensing/
-#
-"""Writing out diffusion reportlets."""
-from mriqc import config
-from mriqc.interfaces import DerivativesDataSink
-
-from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu
-from nireports.interfaces.reporting.base import (
+import attrs
+import logging
+from pathlib import Path
+from pydra.engine import Workflow
+from pydra.engine.task import FunctionTask
+from pydra.tasks.nireports.interfaces.dmri import DWIHeatmap
+from pydra.tasks.nireports.interfaces.reporting.base import (
     SimpleBeforeAfterRPT as SimpleBeforeAfter,
 )
-from nireports.interfaces.dmri import DWIHeatmap
+import typing as ty
 
 
-def init_dwi_report_wf(name="dwi_report_wf"):
+logger = logging.getLogger(__name__)
+
+
+def init_dwi_report_wf(
+    brain_mask=attrs.NOTHING,
+    epi_mean=attrs.NOTHING,
+    epi_parc=attrs.NOTHING,
+    exec_verbose_reports=False,
+    exec_work_dir=None,
+    fd_thres=attrs.NOTHING,
+    hmc_epi=attrs.NOTHING,
+    hmc_fd=attrs.NOTHING,
+    in_avgmap=attrs.NOTHING,
+    in_bdict=attrs.NOTHING,
+    in_dvars=attrs.NOTHING,
+    in_epi=attrs.NOTHING,
+    in_fa=attrs.NOTHING,
+    in_fft=attrs.NOTHING,
+    in_md=attrs.NOTHING,
+    in_parcellation=attrs.NOTHING,
+    in_ras=attrs.NOTHING,
+    in_spikes=attrs.NOTHING,
+    in_stdmap=attrs.NOTHING,
+    meta_sidecar=attrs.NOTHING,
+    name="dwi_report_wf",
+    noise_floor=attrs.NOTHING,
+    outliers=attrs.NOTHING,
+    wf_biggest_file_gb=1,
+    wf_fd_thres=0.2,
+    wf_fft_spikes_detector=False,
+    wf_species="human",
+):
     """
     Write out individual reportlets.
 
@@ -44,332 +53,221 @@ def init_dwi_report_wf(name="dwi_report_wf"):
             wf = init_dwi_report_wf()
 
     """
-    from nireports.interfaces import FMRISummary
-    from niworkflows.interfaces.morphology import BinaryDilation, BinarySubtraction
-
-    from nireports.interfaces import PlotMosaic, PlotSpikes
-
-    # from mriqc.interfaces.reports import IndividualReport
-
-    verbose = config.execution.verbose_reports
-    mem_gb = config.workflow.biggest_file_gb
-    reportlets_dir = config.execution.work_dir / "reportlets"
-
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=[
-                "in_epi",
-                "brainmask",
-                "in_avgmap",
-                "in_stdmap",
-                "in_shells",
-                "in_fa",
-                "in_md",
-                "in_parcellation",
-                "in_bdict",
-                "in_noise",
-                "name_source",
-            ]
-        ),
-        name="inputnode",
+    from pydra.tasks.nireports.interfaces import FMRISummary, PlotMosaic, PlotSpikes
+    from pydra.tasks.niworkflows.interfaces.morphology import (
+        BinaryDilation,
+        BinarySubtraction,
     )
 
-    estimate_sigma = pe.Node(
-        niu.Function(function=_estimate_sigma),
-        name="estimate_sigma",
+    # from mriqc.interfaces.reports import IndividualReport
+    if exec_work_dir is None:
+        exec_work_dir = Path.cwd()
+
+    verbose = exec_verbose_reports
+    mem_gb = wf_biggest_file_gb
+    reportlets_dir = exec_work_dir / "reportlets"
+    workflow = Workflow(
+        name=name,
+        input_spec={
+            "brain_mask": ty.Any,
+            "epi_mean": ty.Any,
+            "epi_parc": ty.Any,
+            "fd_thres": ty.Any,
+            "hmc_epi": ty.Any,
+            "hmc_fd": ty.Any,
+            "in_avgmap": ty.Any,
+            "in_bdict": ty.Any,
+            "in_dvars": ty.Any,
+            "in_epi": ty.Any,
+            "in_fa": ty.Any,
+            "in_fft": ty.Any,
+            "in_md": ty.Any,
+            "in_parcellation": ty.Any,
+            "in_ras": ty.Any,
+            "in_spikes": ty.Any,
+            "in_stdmap": ty.Any,
+            "meta_sidecar": ty.Any,
+            "noise_floor": ty.Any,
+            "outliers": ty.Any,
+        },
+        output_spec={
+            "bmask_report": ty.Any,
+            "carpet_report": ty.Any,
+            "fa_report": ty.Any,
+            "heatmap_report": ty.Any,
+            "md_report": ty.Any,
+            "noise_report": ty.Any,
+            "snr_report": ty.Any,
+            "spikes_report": ty.Any,
+        },
+        brain_mask=brain_mask,
+        epi_mean=epi_mean,
+        epi_parc=epi_parc,
+        fd_thres=fd_thres,
+        hmc_epi=hmc_epi,
+        hmc_fd=hmc_fd,
+        in_avgmap=in_avgmap,
+        in_bdict=in_bdict,
+        in_dvars=in_dvars,
+        in_epi=in_epi,
+        in_fa=in_fa,
+        in_fft=in_fft,
+        in_md=in_md,
+        in_parcellation=in_parcellation,
+        in_ras=in_ras,
+        in_spikes=in_spikes,
+        in_stdmap=in_stdmap,
+        meta_sidecar=meta_sidecar,
+        noise_floor=noise_floor,
+        outliers=outliers,
     )
 
     # Set FD threshold
-    # inputnode.inputs.fd_thres = config.workflow.fd_thres
-
-    mosaic_fa = pe.Node(
-        PlotMosaic(cmap="Greys_r"),
-        name="mosaic_fa",
+    # inputnode.inputs.fd_thres = wf_fd_thres
+    workflow.add(
+        PlotMosaic(
+            cmap="Greys_r",
+            bbox_mask_file=workflow.lzin.brain_mask,
+            in_file=workflow.lzin.in_fa,
+            name="mosaic_fa",
+        )
     )
-    mosaic_md = pe.Node(
-        PlotMosaic(cmap="Greys_r"),
-        name="mosaic_md",
+    workflow.add(
+        PlotMosaic(
+            cmap="Greys_r",
+            bbox_mask_file=workflow.lzin.brain_mask,
+            in_file=workflow.lzin.in_md,
+            name="mosaic_md",
+        )
     )
-
-    mosaic_snr = pe.MapNode(
+    workflow.add(
         SimpleBeforeAfter(
+            after_label="Standard Deviation",
+            before_label="Average",
+            dismiss_affine=True,
             fixed_params={"cmap": "viridis"},
             moving_params={"cmap": "Greys_r"},
-            before_label="Average",
-            after_label="Standard Deviation",
-            dismiss_affine=True,
-        ),
-        name="mosaic_snr",
-        iterfield=["before", "after"],
+            after=workflow.lzin.in_stdmap,
+            before=workflow.lzin.in_avgmap,
+            wm_seg=workflow.lzin.brain_mask,
+            name="mosaic_snr",
+        )
     )
-
-    mosaic_noise = pe.MapNode(
+    workflow.add(
         PlotMosaic(
-            only_noise=True,
             cmap="viridis_r",
-        ),
-        name="mosaic_noise",
-        iterfield=["in_file"],
+            only_noise=True,
+            in_file=workflow.lzin.in_avgmap,
+            name="mosaic_noise",
+        )
     )
-
-    if config.workflow.species.lower() in ("rat", "mouse"):
-        mosaic_noise.inputs.view = ["coronal", "axial"]
-        mosaic_fa.inputs.view = ["coronal", "axial"]
-        mosaic_md.inputs.view = ["coronal", "axial"]
-
-    ds_report_snr = pe.MapNode(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="avgstd",
-            datatype="figures",
-            allowed_entities=("bval",),
-        ),
-        name="ds_report_snr",
-        run_without_submitting=True,
-        iterfield=["in_file", "bval"],
-    )
-
-    ds_report_noise = pe.MapNode(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="background",
-            datatype="figures",
-            allowed_entities=("bval",),
-        ),
-        name="ds_report_noise",
-        run_without_submitting=True,
-        iterfield=["in_file", "bval"],
-    )
-
-    ds_report_fa = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="fa",
-            datatype="figures",
-        ),
-        name="ds_report_fa",
-        run_without_submitting=True,
-    )
-
-    ds_report_md = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="ad",
-            datatype="figures",
-        ),
-        name="ds_report_md",
-        run_without_submitting=True,
-    )
+    if wf_species.lower() in ("rat", "mouse"):
+        workflow.mosaic_noise.inputs.view = ["coronal", "axial"]
+        workflow.mosaic_fa.inputs.view = ["coronal", "axial"]
+        workflow.mosaic_md.inputs.view = ["coronal", "axial"]
 
     def _gen_entity(inlist):
         return ["00000"] + [f"{int(round(bval, 0)):05d}" for bval in inlist]
 
     # fmt: off
-    workflow.connect([
-        (inputnode, mosaic_snr, [("in_avgmap", "before"),
-                                 ("in_stdmap", "after"),
-                                 ("brainmask", "wm_seg")]),
-        (inputnode, mosaic_noise, [("in_avgmap", "in_file")]),
-        (inputnode, mosaic_fa, [("in_fa", "in_file"),
-                                ("brainmask", "bbox_mask_file")]),
-        (inputnode, mosaic_md, [("in_md", "in_file"),
-                                ("brainmask", "bbox_mask_file")]),
-        (inputnode, ds_report_snr, [("name_source", "source_file"),
-                                    (("in_shells", _gen_entity), "bval")]),
-        (inputnode, ds_report_noise, [("name_source", "source_file"),
-                                      (("in_shells", _gen_entity), "bval")]),
-        (inputnode, ds_report_fa, [("name_source", "source_file")]),
-        (inputnode, ds_report_md, [("name_source", "source_file")]),
-        (mosaic_snr, ds_report_snr, [("out_report", "in_file")]),
-        (mosaic_noise, ds_report_noise, [("out_file", "in_file")]),
-        (mosaic_fa, ds_report_fa, [("out_file", "in_file")]),
-        (mosaic_md, ds_report_md, [("out_file", "in_file")]),
-    ])
-    # fmt: on
 
-    get_wm = pe.Node(niu.Function(function=_get_wm), name="get_wm")
-    plot_heatmap = pe.Node(
-        DWIHeatmap(scalarmap_label="Shell-wise Fractional Anisotropy (FA)"),
-        name="plot_heatmap",
+
+    workflow.set_output([('snr_report', workflow.mosaic_snr.lzout.out_report)])
+    workflow.set_output([('noise_report', workflow.mosaic_noise.lzout.out_file)])
+    workflow.set_output([('fa_report', workflow.mosaic_fa.lzout.out_file)])
+    workflow.set_output([('md_report', workflow.mosaic_md.lzout.out_file)])
+    # fmt: on
+    workflow.add(
+        FunctionTask(func=_get_wm, in_file=workflow.lzin.in_parcellation, name="get_wm")
     )
-    ds_report_hm = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="heatmap",
-            datatype="figures",
-        ),
-        name="ds_report_hm",
-        run_without_submitting=True,
+    workflow.add(
+        DWIHeatmap(
+            scalarmap_label="Shell-wise Fractional Anisotropy (FA)",
+            b_indices=workflow.lzin.in_bdict,
+            in_file=workflow.lzin.in_epi,
+            mask_file=workflow.get_wm.lzout.out,
+            scalarmap=workflow.lzin.in_fa,
+            sigma=workflow.lzin.noise_floor,
+            name="plot_heatmap",
+        )
     )
 
     # fmt: off
-    workflow.connect([
-        (inputnode, get_wm, [("in_parcellation", "in_file")]),
-        (inputnode, plot_heatmap, [("in_epi", "in_file"),
-                                   ("in_fa", "scalarmap"),
-                                   ("in_bdict", "b_indices")]),
-        (inputnode, ds_report_hm, [("name_source", "source_file")]),
-        (inputnode, estimate_sigma, [("in_noise", "in_file"),
-                                     ("brainmask", "mask")]),
-        (estimate_sigma, plot_heatmap, [("out", "sigma")]),
-        (get_wm, plot_heatmap, [("out", "mask_file")]),
-        (plot_heatmap, ds_report_hm, [("out_file", "in_file")]),
-
-    ])
+    workflow.set_output([('heatmap_report', workflow.plot_heatmap.lzout.out_file)])
     # fmt: on
-
-    if True:
-        return workflow
 
     # Generate crown mask
     # Create the crown mask
-    dilated_mask = pe.Node(BinaryDilation(), name="dilated_mask")
-    subtract_mask = pe.Node(BinarySubtraction(), name="subtract_mask")
-    parcels = pe.Node(niu.Function(function=_carpet_parcellation), name="parcels")
-
-    bigplot = pe.Node(FMRISummary(), name="BigPlot", mem_gb=mem_gb * 3.5)
-
-    ds_report_carpet = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="carpet",
-            datatype="figures",
-        ),
-        name="ds_report_carpet",
-        run_without_submitting=True,
+    workflow.add(BinaryDilation(in_mask=workflow.lzin.brain_mask, name="dilated_mask"))
+    workflow.add(
+        BinarySubtraction(
+            in_base=workflow.dilated_mask.lzout.out_mask,
+            in_subtract=workflow.lzin.brain_mask,
+            name="subtract_mask",
+        )
+    )
+    workflow.add(
+        FunctionTask(
+            func=_carpet_parcellation,
+            crown_mask=workflow.subtract_mask.lzout.out_mask,
+            segmentation=workflow.lzin.epi_parc,
+            name="parcels",
+        )
+    )
+    workflow.add(
+        FMRISummary(
+            dvars=workflow.lzin.in_dvars,
+            fd=workflow.lzin.hmc_fd,
+            fd_thres=workflow.lzin.fd_thres,
+            in_func=workflow.lzin.hmc_epi,
+            in_segm=workflow.parcels.lzout.out,
+            outliers=workflow.lzin.outliers,
+            tr=workflow.lzin.meta_sidecar,
+            name="bigplot",
+        )
     )
 
     # fmt: off
-    workflow.connect([
-        # (inputnode, rnode, [("in_iqms", "in_iqms")]),
-        (inputnode, bigplot, [("hmc_epi", "in_func"),
-                              ("hmc_fd", "fd"),
-                              ("fd_thres", "fd_thres"),
-                              ("in_dvars", "dvars"),
-                              ("outliers", "outliers"),
-                              (("meta_sidecar", _get_tr), "tr")]),
-        (inputnode, parcels, [("epi_parc", "segmentation")]),
-        (inputnode, dilated_mask, [("brainmask", "in_mask")]),
-        (inputnode, subtract_mask, [("brainmask", "in_subtract")]),
-        (dilated_mask, subtract_mask, [("out_mask", "in_base")]),
-        (subtract_mask, parcels, [("out_mask", "crown_mask")]),
-        (parcels, bigplot, [("out", "in_segm")]),
-        (inputnode, ds_report_carpet, [("name_source", "source_file")]),
-        (bigplot, ds_report_carpet, [("out_file", "in_file")]),
-    ])
+    workflow.bigplot.inputs.tr = workflow.lzin.meta_sidecar
+    workflow.set_output([('carpet_report', workflow.bigplot.lzout.out_file)])
     # fmt: on
-
-    if config.workflow.fft_spikes_detector:
-        mosaic_spikes = pe.Node(
+    if True:  # wf_fft_spikes_detector:
+        workflow.add(
             PlotSpikes(
-                out_file="plot_spikes.svg",
                 cmap="viridis",
+                out_file="plot_spikes.svg",
                 title="High-Frequency spikes",
-            ),
-            name="PlotSpikes",
+                name="mosaic_spikes",
+            )
         )
-
-        ds_report_spikes = pe.Node(
-            DerivativesDataSink(
-                base_directory=reportlets_dir,
-                desc="spikes",
-                datatype="figures",
-            ),
-            name="ds_report_spikes",
-            run_without_submitting=True,
-        )
-
+        pass
         # fmt: off
-        workflow.connect([
-            (inputnode, ds_report_spikes, [("name_source", "source_file")]),
-            (inputnode, mosaic_spikes, [("in_ras", "in_file"),
-                                        ("in_spikes", "in_spikes"),
-                                        ("in_fft", "in_fft")]),
-            (mosaic_spikes, ds_report_spikes, [("out_file", "in_file")]),
-        ])
+        pass
+        workflow.mosaic_spikes.inputs.in_file = workflow.lzin.in_ras
+        workflow.mosaic_spikes.inputs.in_spikes = workflow.lzin.in_spikes
+        workflow.mosaic_spikes.inputs.in_fft = workflow.lzin.in_fft
+        workflow.set_output([('spikes_report', workflow.mosaic_spikes.lzout.out_file)])
         # fmt: on
-
-    if not verbose:
+    if False:  # not verbose:
         return workflow
-
     # Verbose-reporting goes here
-    from nireports.interfaces import PlotContours
+    from pydra.tasks.nireports.interfaces import PlotContours
 
-    mosaic_zoom = pe.Node(
-        PlotMosaic(
-            cmap="Greys_r",
-        ),
-        name="PlotMosaicZoomed",
-    )
-
-    plot_bmask = pe.Node(
+    workflow.add(
         PlotContours(
-            display_mode="y" if config.workflow.species.lower() in ("rat", "mouse") else "z",
-            levels=[0.5],
             colors=["r"],
             cut_coords=10,
+            display_mode="y" if wf_species.lower() in ("rat", "mouse") else "z",
+            levels=[0.5],
             out_file="bmask",
-        ),
-        name="PlotBrainmask",
-    )
-
-    ds_report_zoomed = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="zoomed",
-            datatype="figures",
-        ),
-        name="ds_report_zoomed",
-        run_without_submitting=True,
-    )
-
-    ds_report_background = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="background",
-            datatype="figures",
-        ),
-        name="ds_report_background",
-        run_without_submitting=True,
-    )
-
-    ds_report_bmask = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="brainmask",
-            datatype="figures",
-        ),
-        name="ds_report_bmask",
-        run_without_submitting=True,
-    )
-
-    ds_report_norm = pe.Node(
-        DerivativesDataSink(
-            base_directory=reportlets_dir,
-            desc="norm",
-            datatype="figures",
-        ),
-        name="ds_report_norm",
-        run_without_submitting=True,
+            in_contours=workflow.lzin.brain_mask,
+            in_file=workflow.lzin.epi_mean,
+            name="plot_bmask",
+        )
     )
 
     # fmt: off
-    workflow.connect([
-        (inputnode, ds_report_norm, [("mni_report", "in_file"),
-                                     ("name_source", "source_file")]),
-        (inputnode, plot_bmask, [("epi_mean", "in_file"),
-                                 ("brainmask", "in_contours")]),
-        (inputnode, mosaic_zoom, [("epi_mean", "in_file"),
-                                  ("brainmask", "bbox_mask_file")]),
-        (inputnode, mosaic_noise, [("epi_mean", "in_file")]),
-        (inputnode, ds_report_zoomed, [("name_source", "source_file")]),
-        (inputnode, ds_report_background, [("name_source", "source_file")]),
-        (inputnode, ds_report_bmask, [("name_source", "source_file")]),
-        (mosaic_zoom, ds_report_zoomed, [("out_file", "in_file")]),
-        (mosaic_noise, ds_report_background, [("out_file", "in_file")]),
-        (plot_bmask, ds_report_bmask, [("out_file", "in_file")]),
-    ])
+    workflow.set_output([('bmask_report', workflow.plot_bmask.lzout.out_file)])
     # fmt: on
 
     return workflow
@@ -378,11 +276,10 @@ def init_dwi_report_wf(name="dwi_report_wf"):
 def _carpet_parcellation(segmentation, crown_mask):
     """Generate the union of two masks."""
     from pathlib import Path
-    import numpy as np
     import nibabel as nb
+    import numpy as np
 
     img = nb.load(segmentation)
-
     lut = np.zeros((256,), dtype="uint8")
     lut[100:201] = 1  # Ctx GM
     lut[30:99] = 2  # dGM
@@ -391,7 +288,6 @@ def _carpet_parcellation(segmentation, crown_mask):
     # Apply lookup table
     seg = lut[np.asanyarray(img.dataobj, dtype="uint16")]
     seg[np.asanyarray(nb.load(crown_mask).dataobj, dtype=int) > 0] = 5
-
     outimg = img.__class__(seg.astype("uint8"), img.affine, img.header)
     outimg.set_data_dtype("uint8")
     out_file = Path("segments.nii.gz").absolute()
@@ -400,14 +296,16 @@ def _carpet_parcellation(segmentation, crown_mask):
 
 
 def _get_tr(meta_dict):
+
     return meta_dict.get("RepetitionTime", None)
 
 
 def _get_wm(in_file, radius=2):
+
     from pathlib import Path
-    import numpy as np
     import nibabel as nb
-    from nipype.utils.filemanip import fname_presuffix
+    import numpy as np
+    from pydra.tasks.mriqc.nipype_ports.utils.filemanip import fname_presuffix
     from scipy import ndimage as ndi
     from skimage.morphology import ball
 
@@ -415,7 +313,6 @@ def _get_wm(in_file, radius=2):
     hdr = parc.header.copy()
     data = np.array(parc.dataobj, dtype=hdr.get_data_dtype())
     wm_mask = ndi.binary_erosion((data == 1) | (data == 2), ball(radius))
-
     hdr.set_data_dtype(np.uint8)
     out_wm = fname_presuffix(in_file, suffix="wm", newpath=str(Path.cwd()))
     parc.__class__(
@@ -424,14 +321,3 @@ def _get_wm(in_file, radius=2):
         hdr,
     ).to_filename(out_wm)
     return out_wm
-
-
-def _estimate_sigma(in_file, mask):
-    import numpy as np
-    import nibabel as nb
-
-    msk = np.asanyarray(nb.load(mask).dataobj) > 0.5
-
-    return float(
-        np.median(nb.load(in_file).get_fdata()[msk])
-    )

@@ -170,7 +170,7 @@ jobs:
       if: github.event_name == 'repository_dispatch'
       run: |
         TAG=$(git tag -l | tail -n 1 | awk -F post '{print $1}')
-        POST=$(python -c "from pydra.tasks.anatomical.auto._version import *; print(post_release)")
+        POST=$(python -c "from pydra.tasks.anatomical.auto._post_release import *; print(post_release)")
         git checkout $TAG
         git add -f pydra/tasks/anatomical/auto/_version.py
         git commit -am"added auto-generated version to make new tag for package version"
