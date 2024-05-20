@@ -8,14 +8,32 @@ description = "Pydra tasks package for mriqc"
 readme = "README.rst"
 requires-python = ">=3.8"
 dependencies = [
-    "pydra >=0.22",
+    "dipy",
     "fileformats >=0.8.3",
     "fileformats-datascience >=0.1",
     "fileformats-medimage >=0.4.1",
+    "markupsafe ~= 2.0.1",
+    "matplotlib",
+    "nibabel",
+    "nilearn",
+    "migas >= 0.4.0",
+    "pandas ~=1.0",
+    "pydra >=0.22",
     "pydra-ants",
     "pydra-afni",
     "pydra-fsl",
     "pydra-mrtrix3 >=3.0.3a0",
+    "pydra-niworkflows",
+    "PyYAML",
+    "seaborn",
+    "scikit-learn",
+    "scipy",
+    "statsmodels",
+    "templateflow",
+    "nilearn",
+    "torch",
+    "toml",
+    "tomli >= 1.1.0; python_version < '3.11'",
 ]
 license = { file = "LICENSE" }
 authors = [{ name = "Nipype developers", email = "neuroimaging@python.org" }]
