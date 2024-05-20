@@ -32,10 +32,10 @@ jobs:
       run: python -m pip install -r ./nipype-auto-conv/requirements.txt
     - name: Run automatic Nipype > Pydra conversion
       run: ./nipype-auto-conv/generate
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: converted-nipype
-        path: pydra/tasks/anatomical/auto
+        path: pydra/tasks/mriqc
 
   devcheck:
     needs: [nipype-conv]
@@ -54,13 +54,13 @@ jobs:
       if: github.event_name == 'repository_dispatch'
       run: git checkout $(git tag -l | tail -n 1 | awk -F post '{print $1}')    
     - name: Download tasks converted from Nipype 
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: converted-nipype
-        path: pydra/tasks/anatomical/auto
+        path: pydra/tasks/mriqc
     - name: Strip auto package from gitignore so it is included in package
       run: |
-        sed -i '/\/pydra\/tasks\/anatomical\/auto/d' .gitignore
+        sed -i '/\/pydra/d' .gitignore
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -100,14 +100,14 @@ jobs:
       run: git checkout $(git tag -l | tail -n 1 | awk -F post '{print $1}')
 
     - name: Download tasks converted from Nipype 
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: converted-nipype
-        path: pydra/tasks/anatomical/auto
+        path: pydra/tasks/mriqc
 
-    - name: Strip auto package from gitignore so it is included in package
+    - name: Strip pydra package from gitignore so it is included in package
       run: |
-        sed -i '/\/src\/pydra\/tasks\/anatomical\/auto/d' .gitignore
+        sed -i '/\/pydra/d' .gitignore
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -149,17 +149,17 @@ jobs:
         submodules: recursive
         fetch-depth: 0
     - name: Download tasks converted from Nipype 
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: converted-nipype
-        path: pydra/tasks/anatomical/auto
+        path: pydra/tasks/mriqc
     - name: Tag release with a post-release based on Nipype and Nipype2Pydra versions
       if: github.event_name == 'repository_dispatch'
       run: |
         TAG=$(git tag -l | tail -n 1 | awk -F post '{print $1}')
-        POST=$(python -c "from pydra.tasks.anatomical.auto._post_release import *; print(post_release)")
+        POST=$(python -c "from pydra.tasks.anatomical._post_release import *; print(post_release)")
         git checkout $TAG
-        git add -f pydra/tasks/anatomical/auto/_version.py
+        git add -f pydra/tasks/mriqc/_version.py
         git commit -am"added auto-generated version to make new tag for package version"
         git tag ${TAG}post${POST}    
     - name: Set up Python
@@ -168,9 +168,9 @@ jobs:
         python-version: '3.11'
     - name: Install build tools
       run: python -m pip install build twine
-    - name: Strip auto package from gitignore so it is included in package
+    - name: Strip pydra package from gitignore so it is included in package
       run: |
-        sed -i '/\/pydra\/tasks\/anatomical\/auto/d' .gitignore
+        sed -i '/\/pydra/d' .gitignore
     - name: Build source and wheel distributions
       run: python -m build .
     - name: Check distributions
