@@ -87,38 +87,12 @@ jobs:
       matrix:
         python-version: ['3.8']  # '3.11'
     steps:
+
     - name: Removed unnecessary tools to free space
       run: |
         sudo rm -rf /usr/share/dotnet
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"      
-    - name: Get Download cache Key
-      id: cache-key
-      run: echo "::set-output name=key::anatomical-linux-ubuntu22_amd64-7.4.1"
-    - name: Cache FreeSurfer
-      uses: actions/cache@v2
-      with:
-        path: $HOME/downloads/anatomical
-        key: ${{ steps.cache-key.outputs.key }}
-        restore-keys: |
-          anatomical-linux-ubuntu22_amd64-7.4.1
-    - name: Download FreeSurfer
-      if: steps.cache-key.outputs.key != steps.cache-hit.outputs.key
-      run: |
-        mkdir -p $HOME/downloads/anatomical
-        curl -s -o $HOME/downloads/anatomical/anatomical-linux-ubuntu22_amd64-7.4.1.tar.gz https://surfer.nmr.mgh.harvard.edu/pub/dist/anatomical/7.4.1/anatomical-linux-ubuntu22_amd64-7.4.1.tar.gz
-      shell: bash
-    - name: Install Freesurfer
-      env:
-        FREESURFER_LICENCE: ${{ secrets.FREESURFER_LICENCE }}
-      run: |
-        pushd $HOME/downloads/anatomical
-        tar -zxpf anatomical-linux-ubuntu22_amd64-7.4.1.tar.gz
-        mv anatomical $HOME/
-        popd
-        export FREESURFER_HOME=$HOME/anatomical
-        source $FREESURFER_HOME/SetUpFreeSurfer.sh
-        echo $FREESURFER_LICENCE > $FREESURFER_HOME/license.txt
-        export PATH=$FREESURFER_HOME/bin:$PATH
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
     - uses: actions/checkout@v4
     - name: Revert version to most recent tag on upstream update
       if: github.event_name == 'repository_dispatch'
