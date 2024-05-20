@@ -121,7 +121,7 @@ jobs:
     - name: Install task package
       run: |
         pip install ".[test]"
-        python -c "import pydra.tasks.anatomical as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
+        python -c "import pydra.tasks.mriqc as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
         python -c "import pydra as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
 
     - name: Set environment variables required for mocking tools
@@ -131,14 +131,13 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest -sv --doctest-modules ./pydra/tasks/anatomical \
-            --cov pydra.tasks.anatomical --cov-report xml
+        pytest -sv ./pydra --cov pydra.tasks.mriqc --cov-report xml
 
     - uses: codecov/codecov-action@v3
       if: ${{ always() }}
       with:
         files: coverage.xml
-        name: pydra-anatomical
+        name: pydra-mriqc
 
   deploy:
     needs: [test]
@@ -157,7 +156,7 @@ jobs:
       if: github.event_name == 'repository_dispatch'
       run: |
         TAG=$(git tag -l | tail -n 1 | awk -F post '{print $1}')
-        POST=$(python -c "from pydra.tasks.anatomical._post_release import *; print(post_release)")
+        POST=$(python -c "from pydra.tasks.mriqc._post_release import *; print(post_release)")
         git checkout $TAG
         git add -f pydra/tasks/mriqc/_version.py
         git commit -am"added auto-generated version to make new tag for package version"
