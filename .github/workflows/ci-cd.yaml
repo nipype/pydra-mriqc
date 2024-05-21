@@ -24,6 +24,8 @@ jobs:
     - name: Revert version to most recent tag on upstream update
       if: github.event_name == 'repository_dispatch'
       run: git checkout $(git tag -l | tail -n 1 | awk -F post '{print $1}')    
+    - name: Show file tree
+      run: tree .
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
     - name: Install build dependencies
