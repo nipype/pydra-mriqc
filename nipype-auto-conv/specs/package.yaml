@@ -44,15 +44,15 @@ find_replace:
   - ["class _ReadDWIMetadataOutputSpec.+?(?=\\n\\n)", ""]
   - ["dataset = wf_inputs\\.get\\(.*?_datalad_get\\(\\w+\\)", ""]
   - ["DWIDenoise", "DwiDenoise"]
-  - [
-      "dict\\[int, \\(float, float\\)\\]",
-      "ty.Dict[int, ty.Tuple[float, float]]",
-    ]
-  - [
-      "dict\\[str, float \\| np.ndarray\\]",
-      "ty.Dict[str, ty.Union[float, np.ndarray]]",
-    ]
-  - ["\\bdict\\[", "ty.Dict["]
+  # - [
+  #     "dict\\[int, \\(float, float\\)\\]",
+  #     "ty.Dict[int, ty.Tuple[float, float]]",
+  #   ]
+  # - [
+  #     "dict\\[str, float \\| np.ndarray\\]",
+  #     "ty.Dict[str, ty.Union[float, np.ndarray]]",
+  #   ]
+  # - ["\\bdict\\[", "ty.Dict["]
 omit_modules:
   - "mriqc.config"
 import_find_replace:
