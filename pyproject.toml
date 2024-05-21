@@ -24,6 +24,7 @@ dependencies = [
     "pydra-fsl",
     "pydra-mrtrix3 >=3.0.3a0",
     "pydra-niworkflows",
+    "pydra-nireports",
     "PyYAML",
     "seaborn",
     "scikit-learn",
