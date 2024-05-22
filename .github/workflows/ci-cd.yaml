@@ -127,7 +127,7 @@ jobs:
         python -c "import pydra as m; print(f'{m.__name__} {m.__version__} @ {m.__file__}')"
 
     - name: Install dev Pydra version for now until it is merged
-      run: pip install --upgrade git+https://github.com/nipype/pydra.git@nipype-auto-conv
+      run: pip install --upgrade git+https://github.com/nipype/pydra.git@typing-bugfixes
 
     - name: Set environment variables required for mocking tools
       run: |
