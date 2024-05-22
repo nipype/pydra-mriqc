@@ -6,16 +6,41 @@ build-backend = "hatchling.build"
 name = "pydra-mriqc"
 description = "Pydra tasks package for mriqc"
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "pydra >=0.22",
+    "dipy",
     "fileformats >=0.8.3",
     "fileformats-datascience >=0.1",
     "fileformats-medimage >=0.4.1",
+    "markupsafe ~= 2.0.1",
+    "matplotlib",
+    "nibabel",
+    "nilearn",
+    "migas >= 0.4.0",
+    "pandas ~=1.0",
+    "pydra >=0.22",
+    "pydra-ants",
+    "pydra-afni",
+    "pydra-fsl",
+    "pydra-mrtrix3 >=3.0.3a0",
+    "pydra-niworkflows",
+    "pydra-nireports",
+    "PyYAML",
+    "seaborn",
+    "scikit-learn",
+    "scipy",
+    "statsmodels",
+    "templateflow",
+    "nilearn",
+    "torch",
+    "toml",
+    "tomli >= 1.1.0; python_version < '3.11'",
 ]
-license = {file = "LICENSE"}
-authors = [{name = "Nipype developers", email = "neuroimaging@python.org"}]
-maintainers = [{name = "Nipype developers", email = "neuroimaging@python.org"}]
+license = { file = "LICENSE" }
+authors = [{ name = "Nipype developers", email = "neuroimaging@python.org" }]
+maintainers = [
+    { name = "Nipype developers", email = "neuroimaging@python.org" },
+]
 keywords = ["pydra"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -30,10 +55,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = [
-    "black",
-    "pre-commit",
-]
+dev = ["black", "pre-commit"]
 doc = [
     "packaging",
     "sphinx >=2.1.2",
@@ -43,6 +65,7 @@ doc = [
     "sphinxcontrib-versioning",
 ]
 test = [
+    "nipype2pydra",
     "pytest >= 4.4.0",
     "pytest-cov",
     "pytest-env",
@@ -52,6 +75,9 @@ test = [
     "fileformats-extras",
     "fileformats-datascience-extras",
     "fileformats-medimage-extras",
+    "fileformats-medimage-afni-extras",
+    "fileformats-medimage-mrtrix3-extras",
+    "fileformats-medimage-fsl-extras",
 ]
 
 [tool.hatch.version]
@@ -73,9 +99,7 @@ ignore-words = ".codespell-ignorewords"
 
 [tool.flake8]
 doctests = true
-per-file-ignores = [
-    "__init__.py:F401,F403"
-]
+per-file-ignores = ["__init__.py:F401,F403"]
 max-line-length = 88
 select = "C,E,F,W,B,B950"
 extend-ignore = ['E203', 'E501', 'E129', 'W503']

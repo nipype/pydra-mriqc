@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "Version AFNI_24_1_0"
+echo "Dummy line"

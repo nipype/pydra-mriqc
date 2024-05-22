@@ -137,6 +137,4 @@ dmypy.json
 # Mac garbarge
 .DS_store
 
-/pydra/tasks/mriqc/interfaces
-/pydra/tasks/mriqc/_version.py
-/pydra/tasks/mriqc/auto
+/pydra
