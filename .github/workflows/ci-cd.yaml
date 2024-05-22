@@ -133,6 +133,7 @@ jobs:
       run: |
         export PATH=$(pwd)/mock-tools:$PATH
         export FSLDIR=$(pwd)/mock-tools
+        echo "PATH: $PATH"
 
     - name: Test with pytest
       run: |
