@@ -131,9 +131,9 @@ jobs:
 
     - name: Set environment variables required for mocking tools
       run: |
-        export PATH=$(pwd)/mock-tools:$PATH
-        export FSLDIR=$(pwd)/mock-tools
-        echo "PATH: $PATH"
+        echo "$(pwd)/mock-tools" >> $GITHUB_PATH
+        echo "export FSLDIR=$(pwd)/mock-tools" >> $GITHUB_ENV
+        echo "export FSLOUTPUTTYPE=NIFTI_GZ" >> $GITHUB_ENV
 
     - name: Test with pytest
       run: |
