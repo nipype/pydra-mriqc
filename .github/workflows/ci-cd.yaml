@@ -9,11 +9,13 @@ name: CI/CD
 on:
   push:
     branches: [ main, develop ]
-    tags: [ '*' ]
   pull_request:
     branches: [ main, develop ]
+  release:
+    types: [published]
   repository_dispatch:
-    types: [create-release]
+    types: [create-post-release]
+
 
 jobs:
   nipype-conv:
