@@ -62,3 +62,4 @@ import_find_replace:
   - ["\\s+config,(\\s+)fname_presuffix,", "\\1fname_presuffix,"]
 copy_packages:
   - mriqc.data
+  - mriqc.synthstrip
