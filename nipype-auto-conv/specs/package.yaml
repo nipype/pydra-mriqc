@@ -35,6 +35,12 @@ omit_constants:
 import_translations:
   - [nireports, pydra.tasks.nireports]
   - [niworkflows, pydra.tasks.niworkflows]
+import_find_replace:
+  - ["from \\.\\. import config, logging", ""]
+  - ["_ReadDWIMetadataOutputSpec,", ""]
+  - ["from pydra.tasks.mriqc.nipype_ports.interfaces import utility as niu", ""]
+  - ["\\s+config,(\\s+)fname_presuffix,", "\\1fname_presuffix,"]
+  - ["from pydra.tasks.io.auto import add_traits\n", ""]
 find_replace:
   - [config\.loggers\.\w+\., logger.]
   - [config.to_filename\(\), ""]
@@ -55,11 +61,6 @@ find_replace:
   # - ["\\bdict\\[", "ty.Dict["]
 omit_modules:
   - "mriqc.config"
-import_find_replace:
-  - ["from \\.\\. import config, logging", ""]
-  - ["_ReadDWIMetadataOutputSpec,", ""]
-  - ["from pydra.tasks.mriqc.nipype_ports.interfaces import utility as niu", ""]
-  - ["\\s+config,(\\s+)fname_presuffix,", "\\1fname_presuffix,"]
 copy_packages:
   - mriqc.data
   - mriqc.synthstrip
